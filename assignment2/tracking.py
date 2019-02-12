@@ -1,10 +1,13 @@
-import cv2
-cap = cv2.VideoCapture(0)
-cv2.namedWindow("Video")
+import cv2 as cv
+cap = cv.VideoCapture(0)
+cv.namedWindow("Video")
+cv.namedWindow("HSV")
 while True:
     status, img = cap.read()
-    cv2.imshow("Video", img)
-    k = cv2.waitKey(1)
+    cv.imshow("Video", img)
+    k = cv.waitKey(1)
     if k == 27:
         break
-cv2.destroyAllWindows()
+    hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+    cv.imshow("HSV", hsv)
+cv.destroyAllWindows()
