@@ -5,8 +5,9 @@ cap = cv2.VideoCapture(0)
 cv2.namedWindow("Video")
 
 def get_hsv_val(event, x, y, flags, param):
+    __, image = cap.read()
     if event == cv2.EVENT_LBUTTONDOWN:
-        print(int(cap[x,y]))
+        print(image[y][x])
 
         
 cv2.setMouseCallback("Video", get_hsv_val)
