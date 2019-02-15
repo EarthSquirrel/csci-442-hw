@@ -36,7 +36,6 @@ cv2.createTrackbar('V Max','hsv',0,255, nothing)
 
 while True:
     status, img = cap.read()
-    print(type(img))
     cv2.resizeWindow("Video", 600,400)
     cv2.imshow("Video", img)
     cv2.resizeWindow("hsv", 600,400)
@@ -57,7 +56,6 @@ while True:
 
     # Convert to hsv
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    #res = cv2.bitwise_and(img,img, hsv=hsv)
     cv2.imshow('hsv', hsv)
 
     # Color tracking
@@ -69,7 +67,7 @@ while True:
     kernel = np.ones((6,6), np.uint8)
     img_dilation = cv2.dilate(img_erosion, kernel, iterations=1)
 
-    # cv2.imshow('Erosion', img_erosion)
+    cv2.imshow('Erosion', img_erosion)
     cv2.imshow('tracking', img_dilation)
 
     # unedited tracking image
