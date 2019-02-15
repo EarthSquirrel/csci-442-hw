@@ -4,6 +4,10 @@ import numpy as np
 cap = cv2.VideoCapture(0)
 cv2.namedWindow("Video")
 
+
+def nothing(x):
+    pass
+
 def get_hsv_val(event, x, y, flags, param):
     __, image = cap.read()
     if event == cv2.EVENT_LBUTTONDOWN:
@@ -12,10 +16,14 @@ def get_hsv_val(event, x, y, flags, param):
         
 cv2.setMouseCallback("Video", get_hsv_val)
 
+cv2.createTrackbar('Blue Min', 'Video', 0,255,nothing)
+cv2.createTrackbar('Blue Max', 'Video', 0,255,nothing)
+
+
 while True:
     status, img = cap.read()
     cv2.namedWindow("Video", cv2.WINDOW_NORMAL)
-    cv2.resizeWindow("Video", 600,400)
+    cv2.resizeWindow("Video", 600,600)
     cv2.imshow("Video", img)
 
     # Convert to hsv
@@ -32,9 +40,9 @@ while True:
     cv2.namedWindow('mask', cv2.WINDOW_NORMAL)
     cv2.namedWindow('res', cv2.WINDOW_NORMAL)
     
-    cv2.resizeWindow('img',600,400)
-    cv2.resizeWindow('mask',600,400)
-    cv2.resizeWindow('res',600,400)
+    cv2.resizeWindow('img',600,600)
+    cv2.resizeWindow('mask',600,600)
+    cv2.resizeWindow('res',600,600)
     
     cv2.imshow('img',img)
     cv2.imshow('mask',mask)
