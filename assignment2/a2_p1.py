@@ -11,7 +11,6 @@ def get_hsv_val(event, x, y, flags, param):
     if event == cv2.EVENT_LBUTTONDOWN:
         stat2, img2 = cap.read()
         vals = img2[y][x]
-        print(vals)
         # set track bar to -10 + 10 of click
         adjust = 25
         cv2.setTrackbarPos('H Min', 'hsv', vals[0]-adjust)
