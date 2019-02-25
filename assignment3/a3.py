@@ -7,7 +7,7 @@ if sys_pf == 'darwin':
 from matplotlib import pyplot as plt
 
 # My code
-img = cv.imread('./imagesWOvideo/one.jpg', cv.IMREAD_COLOR)
+img = cv.imread('./10_color_reduc.jpg', cv.IMREAD_COLOR)
 img_gray = cv.cvtColor(img,cv.COLOR_BGR2GRAY)
 blur = cv.blur(img,(3,3))
 edges = cv.Canny(blur,10,300)
@@ -16,16 +16,16 @@ img2, contours, hierarchy = cv.findContours(thresh,cv.RETR_TREE,cv.CHAIN_APPROX_
 cv.drawContours(edges, contours, -1, (0,255,0), 3)
 
 # Britney's code
-img = cv.imread('./imagesWOvideo/one.jpg', cv.IMREAD_COLOR)
+# img = cv.imread('./imagesWOvideo/one.jpg', cv.IMREAD_COLOR)
 # img = cv.imread('./imagesWOvideo/two.jpg', cv.IMREAD_COLOR)
-thresh = img.copy()
+# thresh = img.copy()
 
 
 
 # Set up parameters for blob detection
-# params = cv.SimpleBlobDetector_Params()
-# Change thresholds
+params = cv.SimpleBlobDetector_Params()
 
+# Change thresholds
 params.minThreshold = 2
 params.maxThreshold = 500
 params.filterByCircularity = True
@@ -40,8 +40,8 @@ img_erosion = cv.erode(blur, kernel, iterations=1)
 kernel = np.ones((4,4), np.uint8)
 img_dilation = cv.dilate(img_erosion, kernel, iterations=1)
 
-# cv.imshow('Erosion', img_erosion)
-# cv.imshow('tracking', img_dilation)
+cv.imshow('Erosion', img_erosion)
+cv.imshow('tracking', img_dilation)
 
 edges = cv.Canny(img_dilation, 10, 300)
 cv.imshow('edge', edges)
@@ -53,13 +53,13 @@ img2,contours,hierarchy = cv.findContours(edges, 1, 2)
 # print(M)
 # cv.drawContours(edges, contours, -1, (20,20,20), -1)
 # cv.imshow('edge2contour', edges)
-for cnt in contours:
-    x,y,w,h = cv.boundingRect(cnt)
-    cv.rectangle(thresh, (x,y), (x+w,y+h,), (255,255,0), 2)
-# cv.imshow('cont', thresh)
+# for cnt in contours:
+#     x,y,w,h = cv.boundingRect(cnt)
+#     cv.rectangle(thresh, (x,y), (x+w,y+h,), (255,255,0), 2)
+# # cv.imshow('cont', thresh)
 
 kernel = np.ones((3,3), np.uint8)
-edge_dilat= cv.dilate(edges, kernel, iterations=1)
+edge_dilat= cv.dilate(edges, kernel, iterations=2)
 cv.imshow('edge-dialtion', edge_dilat)
 
 """
@@ -69,16 +69,16 @@ plt.subplot(122),plt.imshow(edges,cmap = 'gray')
 plt.title('Edge Image'), plt.xticks([]), plt.yticks([])
 plt.show()
 """
->>>>>>> a7c2a20aa3440a5f197630ae0e16974a5e340ae2
 
-# detector = cv.SimpleBlobDetector_create(params)
+
+detector = cv.SimpleBlobDetector_create(params)
 
 
 keypoints = detector.detect(edge_dilat)
 keypoints_im = cv.drawKeypoints(edge_dilat, keypoints, np.array([]), (0, 255, 0),
                                 cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
-# cv.imshow('Keypoints', keypoints_im)
+cv.imshow('Keypoints', keypoints_im)
 cv.imshow('Edges', edges)
 cv.imshow('Original', img)
 
