@@ -27,7 +27,7 @@ img_dilation = cv.dilate(img_erosion, kernel, iterations=1)
 cv.imshow('Erosion', img_erosion)
 cv.imshow('tracking', img_dilation)
 
-edges = cv.Canny(img_dilation, 10, 300)
+edges = cv.Canny(img_dilation, 40, 45)
 cv.imshow('edge', edges)
 thresh = edges.copy()
 img2,contours,hierarchy = cv.findContours(edges, 1, 2)

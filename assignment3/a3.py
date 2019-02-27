@@ -25,7 +25,7 @@ cv.drawContours(edges, contours, -1, (0,255,0), 3)
 # Set up parameters for blob detection
 params = cv.SimpleBlobDetector_Params()
 
-# Change thresholds
+	# Change thresholds
 params.minThreshold = 2
 params.maxThreshold = 500
 params.filterByCircularity = True
