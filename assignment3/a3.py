@@ -19,18 +19,17 @@ def get_hsv_val(event, x, y, flags, param):
 cv.setMouseCallback("Color circles", get_hsv_val)
 
 def get_label(rgb):
-    # convert rgb to hex value
-    hex_str = "{:02x}{:02x}{:02x}".format(rgb[0], rgb[1], rgb[2])
-    diff = []
-    # turn into hex and find closest number
-    num = int(hex_str, 16)
-    color_values = (list(color_labels.keys()))
-    for i in color_values:
-        diff.append(abs(num-i))
-    # print('index: ', min(diff), 'min: ', diff.index(min(diff)))
-    val = diff.index(min(diff))
-    close = color_values[val]
-    return val, color_labels[close]
+    min_dist = np.Infinity
+    label = ''
+    color_values = list(color_rgb.keys())
+
+    for color in color_values:
+        dist = np.sqrt(sum([(rgb[i]-color_rgb[color][i])**2 for i in range(3)]))
+        if dist < min_dist:
+            min_dist = dist
+            label = color
+
+    return label
 
 img = cv.imread('./imagesWOvideo/one.jpg', cv.IMREAD_COLOR)
 # img = cv.imread('./imagesWOvideo/two.jpg', cv.IMREAD_COLOR)
@@ -120,7 +119,7 @@ for k in keypoints:
     mc = [int(m) for m in mc]
     colors.append(mc)
     # print(mc)
-    val,label = get_label(mc)
+    label = get_label(mc)
     print(label)
     mc2 = mc.copy()
     mc = color_rgb[label]
