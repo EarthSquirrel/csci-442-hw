@@ -40,6 +40,8 @@ img_erosion = cv.erode(blur, kernel, iterations=2)
 img_dilation = cv.dilate(img_erosion, kernel, iterations=2)
 
 gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+# param1 and 2 are canny edge detection
+# 1 and 20 are magical things I do not know from an example
 circles = cv.HoughCircles(gray,cv.HOUGH_GRADIENT,1, 20,
                            param1=150,param2=35,minRadius=15,maxRadius=75)
 
