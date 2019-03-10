@@ -3,6 +3,7 @@ from picamera.array import PiRGBArray
 from picamera import PiCamera
 import time
 import cv2
+import numpy as np
 
 # initialize the camera and grab a reference to the raw camera capture
 camera = PiCamera()
@@ -17,8 +18,17 @@ time.sleep(0.1)
 for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
     # grab the raw NumPy array representing the image, then initialize the timestamp
     # and occupied/unoccupied text
-    image = frame.array
-    pic = cv2.Canny(image, 100, 170)
+    img = frame.array
+
+    blur = cv2.blur(img,(3,3))
+
+    kernel = np.ones((5,5), np.uint8)
+
+    img_erosion = cv2.erode(blur, kernel, iterations=1)
+    img_dilation = cv2.dilate(img_erosion, kernel, iterations=1)
+
+
+    pic = cv2.Canny(img_dilation, 150, 170)
     # show the frame
     cv2.imshow("Frame", pic)
     key = cv2.waitKey(1) & 0xFF
