@@ -8,15 +8,24 @@ import numpy as np
 # initialize the camera and grab a reference to the raw camera capture
 camera = PiCamera()
 camera.resolution = (640, 480)
-camera.framerate = 15  #   32
+camera.framerate = 5 # 15  #   32
 rawCapture = PiRGBArray(camera, size=(640, 480))
 
 # allow the camera to warmup
 time.sleep(0.1)
 
+def myContourArea(cnt):
+   x,y,w,h = cv.boundingRect(cnt)
+   return w*h
+
+started = False
+prev_cog = (0, 0)
+cog = (0, 0)
 
 # capture frames from the camera
 for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+    if started:
+        prev_cog = cog
     # grab the raw NumPy array representing the image, then initialize the timestamp
     # and occupied/unoccupied text
     img = frame.array
@@ -52,14 +61,45 @@ for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=
     # print(len(contours))
     # contours = cntsSorted[-3]
 
+    contoursS = sorted(contours, key=lambda x: myContourArea(x))
+    contoursS.reverse()
+    # if myContourArea(contoursS[-1]) == 0:
+    #    del contoursS[-1]
+
     for cnt in contours:
         x,y,w,h = cv.boundingRect(cnt)
         cv.rectangle(thresh, (x,y), (x+w,y+h,), (0,255,0), 2)
+        break
+
+    M = cv.moments(cnt)
+    # print(myContourArea(cnt))
+    if M['m00'] == 0:
+        div_by =0.1
+    else:
+        div_by = M['m00']
+    cx = int(M['m10']/div_by)
+    cy = int(M['m01']/div_by)
+    # print('({}, {})'.format(cx, cy))
+
+    cog = (cx, cy)
+    if started:
+        angle = np.math.atan2(np.linalg.det([cog,prev_cog]),np.dot(cog,prev_cog))
+        # print(angle)  # np.degrees(angle))
+        """
+        if angle == 0:
+            print('straight')
+        elif angle < 0:
+            print('left')
+        else:
+            print('right')
+        """
+    cv.rectangle(thresh,  (cx,cy), (cx+15, cy+15),(0,0,255), 2)
+
 
     cv.drawContours(tours, contours, -1, (0,0,255), -1)
     cv.imshow('Contours', thresh)
 
-
+    started = True
 
 
     # show the frame
