@@ -24,9 +24,8 @@ HEADTURN = 3
 
 motors = 6000
 turn = 6000
-angle_cut = .1
 
-max_move = 5200
+max_move = 5400
 max_turn = 6600  # right
 min_turn = 5400  # left
 
@@ -42,18 +41,25 @@ def myContourArea(cnt):
 def head_down():
     pass
 
+def start_motors():
+    global motors
+    while motors > max_move - 200:
+        motors -= 300
+        servo.setTarget(MOTORS, motors)
+        time.sleep(0.01)
+
+
+
 def go_straight():
     global motors, turn, max_move
     print('straight')
+    servo.setTarget(TURN, 6000)
     while motors > max_move:
         motors -= 300
         servo.setTarget(MOTORS, motors)
         time.sleep(0.01)
-        # if motors > max_move:
-    #    motors = max_move
-    # servo.setTarget(MOTORS, motors)
-    max_moved = 5400
-    motors = max_moved
+    motors = max_move
+    servo.setTarget(MOTORS, motors)
 
 def turn_right():
     global motors, turn
@@ -63,16 +69,18 @@ def turn_right():
         servo.setTarget(TURN, turn)
         time.sleep(0.01)
     turn = max_turn
+    servo.setTarget(TURN, turn)
 
 def turn_left():
     global motors, turn
     print('left')
-    while turn < min_turn:
+    while turn > min_turn:
         print('left: {}'.format(turn))
         turn -= 400
         servo.setTarget(TURN, turn)
         time.sleep(0.01)
     turn = min_turn
+    servo.setTarget(TURN, turn)
 
 def stop():
     print('stop')
@@ -152,6 +160,7 @@ try:
         cv.rectangle(thresh,  (cx,cy), (cx+29, cy+20),(0,0,255), 2)
 
         if started:
+            angle_cut = .05
             angle = np.math.atan2(np.linalg.det([cog,prev_cog]),np.dot(cog,prev_cog))
             # print(angle)  # np.degrees(angle))
             print(angle)
@@ -162,7 +171,7 @@ try:
             else:
                 go_straight()
         else:
-            go_straight()
+            start_motors()
 
         cv.drawContours(tours, contours, -1, (0,0,255), -1)
         cv.imshow('Contours', thresh)
