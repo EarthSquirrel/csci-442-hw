@@ -4,6 +4,10 @@ from picamera import PiCamera
 import time
 import cv2 as cv
 import numpy as np
+import sys
+import tkinter as tk
+import keyboardControl
+
 
 # initialize the camera and grab a reference to the raw camera capture
 camera = PiCamera()
@@ -14,9 +18,39 @@ rawCapture = PiRGBArray(camera, size=(640, 480))
 # allow the camera to warmup
 time.sleep(0.1)
 
+# import and make the key controls here... Please!
+win = tk.Tk()
+keys = keyboardControl.KeyControl(win)
+
+win.bind('<Up>', keys.arrow)
+win.bind('<Left>', keys.arrow)
+win.bind('<Down>', keys.arrow)
+win.bind('<Right>', keys.arrow)
+win.bind('<space>', keys.arrow)
+win.bind('<z>', keys.waist)
+win.bind('<c>', keys.waist)
+win.bind('<w>', keys.head)
+win.bind('<s>', keys.head)
+win.bind('<a>', keys.head)
+win.bind('<d>', keys.head)
+win.mainloop()
+
 def myContourArea(cnt):
    x,y,w,h = cv.boundingRect(cnt)
    return w*h
+
+# control the motors
+def go_straigh():
+    pass
+
+def turn_right():
+    pass
+
+def turn_left():
+    pass
+
+def stop():
+    pass
 
 started = False
 prev_cog = (0, 0)
@@ -82,12 +116,14 @@ for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=
     # print('({}, {})'.format(cx, cy))
 
     cog = (cx, cy)
+    print(cog[3])
     if started:
         angle = np.math.atan2(np.linalg.det([cog,prev_cog]),np.dot(cog,prev_cog))
         # print(angle)  # np.degrees(angle))
         """
         if angle == 0:
-            print('straight')
+            # print('straight')
+
         elif angle < 0:
             print('left')
         else:
@@ -111,4 +147,10 @@ for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=
 
     # if the `q` key was pressed, break from the loop
     if key == ord("q"):
-            break
+        break
+"""
+except: # catch *all* exceptions
+    e = sys.exc_info()[0]
+    keys.arrow (65)
+    print('Stopped motors due to an error')
+"""
