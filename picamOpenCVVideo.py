@@ -22,6 +22,14 @@ BODY = 0
 HEADTILT = 4
 HEADTURN = 3
 
+motors = 6000
+turn = 6000
+
+max_move = 5400
+max_turn = 6600  # right
+min_turn = 5400  # left
+
+
 # create maeskjslk thing
 servo = maestro.Controller()
 
@@ -33,18 +41,53 @@ def myContourArea(cnt):
 def head_down():
     pass
 
+def start_motors():
+    global motors
+    while motors > max_move - 200:
+        motors -= 300
+        servo.setTarget(MOTORS, motors)
+        time.sleep(0.01)
+
+
+
 def go_straight():
-    servo.setTarget(MOTORS, 5400)
+    global motors, turn, max_move
+    print('straight')
+    servo.setTarget(TURN, 6000)
+    while motors > max_move:
+        motors -= 300
+        servo.setTarget(MOTORS, motors)
+        time.sleep(0.01)
+    motors = max_move
+    servo.setTarget(MOTORS, motors)
 
 def turn_right():
-    servo.setTarget(TURN, 6600)
+    global motors, turn
+    print('right')
+    while turn < max_turn:
+        turn += 400
+        servo.setTarget(TURN, turn)
+        time.sleep(0.01)
+    turn = max_turn
+    servo.setTarget(TURN, turn)
 
 def turn_left():
-    servo.setTarget(TURN, 5400)
+    global motors, turn
+    print('left')
+    while turn > min_turn:
+        print('left: {}'.format(turn))
+        turn -= 400
+        servo.setTarget(TURN, turn)
+        time.sleep(0.01)
+    turn = min_turn
+    servo.setTarget(TURN, turn)
 
 def stop():
+    print('stop')
     servo.setTarget(TURN, 6000)
     servo.setTarget(MOTORS, 6000)
+
+
 
 
 started = False
@@ -100,7 +143,6 @@ try:
         for cnt in contoursS:
             x,y,w,h = cv.boundingRect(cnt)
             cv.rectangle(thresh, (x,y), (x+w,y+h,), (0,255,0), 2)
-            break
 
             M = cv.moments(cnt)
             # print(myContourArea(cnt))
@@ -111,26 +153,25 @@ try:
 
             cx = int(M['m10']/div_by)
             cy = int(M['m01']/div_by)
+            break
         # print('({}, {})'.format(cx, cy))
 
         cog = (cx, cy)
         cv.rectangle(thresh,  (cx,cy), (cx+29, cy+20),(0,0,255), 2)
 
         if started:
+            angle_cut = .05
             angle = np.math.atan2(np.linalg.det([cog,prev_cog]),np.dot(cog,prev_cog))
             # print(angle)  # np.degrees(angle))
-            """
-            if angle == 0:
-                # print('straight')
-                go_straight()
-            elif angle < 0:
-                print('left')
-                go_left()
+            print(angle)
+            if angle > angle_cut:
+                turn_right()
+            elif angle < -angle_cut:
+                turn_left()
             else:
-                print('right')
-                go_right()
-            """
-
+                go_straight()
+        else:
+            start_motors()
 
         cv.drawContours(tours, contours, -1, (0,0,255), -1)
         cv.imshow('Contours', thresh)
