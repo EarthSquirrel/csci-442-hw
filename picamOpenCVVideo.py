@@ -188,7 +188,12 @@ try:
 
         # if the `q` key was pressed, break from the loop
         if key == ord("q"):
+            stop()
             break
+        if key == ord("s"):
+            print('Stopping motors so can look at the vision stuff! :) ')
+            stop()
+
 except: # catch *all* exceptions
     e = sys.exc_info()
     print(e)
