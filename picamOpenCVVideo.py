@@ -18,6 +18,13 @@ rawCapture = PiRGBArray(camera, size=(640, 480))
 # allow the camera to warmup
 time.sleep(0.1)
 
+def quit(event):
+    global win
+    print("yup.")
+    stop()
+    win.destroy()
+
+
 # import and make the key controls here... Please!
 win = tk.Tk()
 keys = keyboardControl.KeyControl(win)
@@ -33,6 +40,7 @@ win.bind('<w>', keys.head)
 win.bind('<s>', keys.head)
 win.bind('<a>', keys.head)
 win.bind('<d>', keys.head)
+win.bind('<q>', quit)
 win.mainloop()
 
 def myContourArea(cnt):
@@ -40,17 +48,22 @@ def myContourArea(cnt):
    return w*h
 
 # control the motors
-def go_straigh():
+def head_down():
     pass
+
+def go_straight():
+    maestro.setTargets(MOTORS, 5400)
 
 def turn_right():
-    pass
+    maestro.setTarget(TURN, 6600)
 
 def turn_left():
-    pass
+    maestro.setTarget(TURN, 5400)
 
 def stop():
-    pass
+    maestro.setTarget(TURN, 6000)
+    maestro.setTarget(MOTORS, 6000)
+
 
 started = False
 prev_cog = (0, 0)
@@ -123,11 +136,13 @@ for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=
         """
         if angle == 0:
             # print('straight')
-
+            go_straight()
         elif angle < 0:
             print('left')
+            go_left()
         else:
             print('right')
+            go_right()
         """
     cv.rectangle(thresh,  (cx,cy), (cx+15, cy+15),(0,0,255), 2)
 
