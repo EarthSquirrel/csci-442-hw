@@ -10,11 +10,17 @@ import maestro
 # initialize the camera and grab a reference to the raw camera capture
 camera = PiCamera()
 camera.resolution = (640, 480)
-camera.framerate = 5 # 15  #   32
+camera.framerate = 5 # 5 # 15  #   32
 rawCapture = PiRGBArray(camera, size=(640, 480))
 
 # allow the camera to warmup
 time.sleep(0.1)
+
+cv.namedWindow('edges')
+cv.namedWindow('Contours')
+time.sleep(2)
+
+
 
 MOTORS = 1
 TURN = 2
@@ -25,7 +31,7 @@ HEADTURN = 3
 motors = 6000
 turn = 6000
 
-max_move = 5200  # 5400
+max_move = 5000  # 5400
 max_turn = 6600  # right
 min_turn = 5400  # left
 
@@ -68,7 +74,7 @@ def turn_right():
     global motors, turn
     print('right')
     # decrease stright? just by a little? so it still has momentum?
-    servo.setTarget(MOTORS, 5800)
+    servo.setTarget(MOTORS, 6000)  # max_move-400)
     """
     while turn < max_turn:
         turn += 400
@@ -81,7 +87,7 @@ def turn_right():
 def turn_left():
     global motors, turn
     print('left')
-    servo.setTarget(MOTORS, 5800)
+    servo.setTarget(MOTORS, 6000)  # max_move-400)
     """
     while turn > min_turn:
         print('left: {}'.format(turn))
@@ -114,7 +120,7 @@ try:
         # and occupied/unoccupied text
         img = frame.array
         width, height, channel = img.shape
-        img = img[int(1*height/3):height, 20:width-20]
+        img = img[int(1*height/2):height, 20:width-20]
         # __,new_image = cv.threshold(img, 0, 400, cv.THRESH_BINARY)
         # cv.imshow("newimg", new_image)
         blur = cv.blur(img,(7,7))
@@ -171,8 +177,8 @@ try:
         cog = (cx, cy)
         cv.rectangle(thresh,  (cx,cy), (cx+29, cy+20),(0,0,255), 2)
 
-        if started:
-            angle_cut = .05
+        if started  and not paused:
+            angle_cut = 0 # .02
             angle = np.math.atan2(np.linalg.det([cog,prev_cog]),np.dot(cog,prev_cog))
             # print(angle)  # np.degrees(angle))
             print(angle)
@@ -183,9 +189,14 @@ try:
             else:
                 go_straight()
 
-        else:
+        elif not started:
+            time.sleep(10)
+            start_motors()
+
+        elif paused:
             pass
-            # start_motors()
+        else:
+            print('there is an options missing here!!!')
 
         cv.drawContours(tours, contours, -1, (0,0,255), -1)
         cv.imshow('Contours', thresh)
@@ -204,8 +215,9 @@ try:
         if key == ord("q"):
             stop()
             break
-        if key == ord("s"):
-            paused = True
+        if key == ord("p"):
+            paused = not paused
+            print('paused is now: ', paused)
             print('Stopping motors so can look at the vision stuff! :) ')
             stop()
 
