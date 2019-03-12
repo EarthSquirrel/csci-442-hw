@@ -25,7 +25,7 @@ HEADTURN = 3
 motors = 6000
 turn = 6000
 
-max_move = 5400
+max_move = 5200  # 5400
 max_turn = 6600  # right
 min_turn = 5400  # left
 
@@ -54,31 +54,41 @@ def go_straight():
     global motors, turn, max_move
     print('straight')
     servo.setTarget(TURN, 6000)
+    # Do we have to build up to this?
+    """
     while motors > max_move:
         motors -= 300
         servo.setTarget(MOTORS, motors)
         time.sleep(0.01)
+    """
     motors = max_move
     servo.setTarget(MOTORS, motors)
 
 def turn_right():
     global motors, turn
     print('right')
+    # decrease stright? just by a little? so it still has momentum?
+    servo.setTarget(MOTORS, 5800)
+    """
     while turn < max_turn:
         turn += 400
         servo.setTarget(TURN, turn)
         time.sleep(0.01)
+    """
     turn = max_turn
     servo.setTarget(TURN, turn)
 
 def turn_left():
     global motors, turn
     print('left')
+    servo.setTarget(MOTORS, 5800)
+    """
     while turn > min_turn:
         print('left: {}'.format(turn))
         turn -= 400
         servo.setTarget(TURN, turn)
         time.sleep(0.01)
+    """
     turn = min_turn
     servo.setTarget(TURN, turn)
 
@@ -91,6 +101,7 @@ def stop():
 
 
 started = False
+paused = False
 prev_cog = (0, 0)
 cog = (0, 0)
 
@@ -171,8 +182,10 @@ try:
                 turn_left()
             else:
                 go_straight()
+
         else:
-            start_motors()
+            pass
+            # start_motors()
 
         cv.drawContours(tours, contours, -1, (0,0,255), -1)
         cv.imshow('Contours', thresh)
@@ -192,6 +205,7 @@ try:
             stop()
             break
         if key == ord("s"):
+            paused = True
             print('Stopping motors so can look at the vision stuff! :) ')
             stop()
 
