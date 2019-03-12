@@ -123,9 +123,10 @@ try:
         # cv.imshow('hsv',color_filter) # hsv)
 
         edges = cv.Canny(color_filter, 35, 150, L2gradient=True)
-        cv.imshow('edges', edges)
+        dil_edges = cv.dilate(edges, kernel, iterations=1)
+        cv.imshow('edges', dil_edges)
 
-        contours, hierarchy = cv.findContours(edges, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
+        contours, hierarchy = cv.findContours(dil_edges, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
         width, height, channel = img.shape
         tours = 255 * np.ones((width,height,1), np.uint8)
         thresh = img.copy()
@@ -188,7 +189,12 @@ try:
 
         # if the `q` key was pressed, break from the loop
         if key == ord("q"):
+            stop()
             break
+        if key == ord("s"):
+            print('Stopping motors so can look at the vision stuff! :) ')
+            stop()
+
 except: # catch *all* exceptions
     e = sys.exc_info()
     print(e)
