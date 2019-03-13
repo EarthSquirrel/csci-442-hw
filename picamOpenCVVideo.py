@@ -16,12 +16,6 @@ rawCapture = PiRGBArray(camera, size=(640, 480))
 # allow the camera to warmup
 time.sleep(0.1)
 
-cv.namedWindow('edges')
-cv.namedWindow('Contours')
-time.sleep(2)
-
-
-
 MOTORS = 1
 TURN = 2
 BODY = 0
@@ -53,7 +47,6 @@ def start_motors():
         motors -= 300
         servo.setTarget(MOTORS, motors)
         time.sleep(0.01)
-
 
 
 def go_straight():
@@ -107,7 +100,7 @@ def stop():
 
 
 started = False
-paused = False
+paused =  False
 prev_cog = (0, 0)
 cog = (0, 0)
 
@@ -120,7 +113,7 @@ try:
         # and occupied/unoccupied text
         img = frame.array
         width, height, channel = img.shape
-        img = img[int(1*height/2):height, 20:width-20]
+        img = img[int(1*height/3):height, 20:width-20]
         # __,new_image = cv.threshold(img, 0, 400, cv.THRESH_BINARY)
         # cv.imshow("newimg", new_image)
         blur = cv.blur(img,(7,7))
@@ -133,11 +126,14 @@ try:
         hsv = cv.cvtColor(img_dilation, cv.COLOR_BGR2HSV)
         # hsv = img_dilation.copy()
 
+        # robot lab settings
         hsv_min, hsv_max = (0, 40, 90), (75, 250, 255)
+        # cs lab
+        # hsv_min, hsv_max = (0, 0, 90), (75, 250, 255)
         color_filter = cv.inRange(hsv, hsv_min, hsv_max)
         # pic = cv.Canny(hsv, 150, 170)
 
-        # cv.imshow('hsv',color_filter) # hsv)
+        cv.imshow('hsv',color_filter) # hsv)
 
         edges = cv.Canny(color_filter, 35, 150, L2gradient=True)
         dil_edges = cv.dilate(edges, kernel, iterations=1)
@@ -155,13 +151,19 @@ try:
         contoursS = sorted(contours, key=lambda x: myContourArea(x))
         contoursS.reverse()
         # if myContourArea(contoursS[-1]) == 0:
-        #    del contoursS[-1]
+        #    del contourssS[-1]
+        print(len(contoursS))
+        if len(contoursS) == 0:
+            paused = True
 
         cx, cy = 0, 0
+
         for cnt in contoursS:
             x,y,w,h = cv.boundingRect(cnt)
             cv.rectangle(thresh, (x,y), (x+w,y+h,), (0,255,0), 2)
-
+            if width*height < 10:
+                print('area is {} too small. No contours found.'.format(x*y))
+                paused = True
             M = cv.moments(cnt)
             # print(myContourArea(cnt))
             if M['m00'] == 0:
@@ -178,7 +180,7 @@ try:
         cv.rectangle(thresh,  (cx,cy), (cx+29, cy+20),(0,0,255), 2)
 
         if started  and not paused:
-            angle_cut = 0 # .02
+            angle_cut = 0.01 # .02
             angle = np.math.atan2(np.linalg.det([cog,prev_cog]),np.dot(cog,prev_cog))
             # print(angle)  # np.degrees(angle))
             print(angle)
@@ -189,8 +191,7 @@ try:
             else:
                 go_straight()
 
-        elif not started:
-            time.sleep(10)
+        elif not started and not paused:
             start_motors()
 
         elif paused:
