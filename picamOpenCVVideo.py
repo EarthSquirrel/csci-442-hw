@@ -16,6 +16,9 @@ rawCapture = PiRGBArray(camera, size=(640, 480))
 # allow the camera to warmup
 time.sleep(0.1)
 
+# create maeskjslk thing
+servo = maestro.Controller()
+
 MOTORS = 1
 TURN = 2
 BODY = 0
@@ -24,14 +27,22 @@ HEADTURN = 3
 
 motors = 6000
 turn = 6000
+body = 6000
+headTurn = 6000
+headTilt = 6000 # 0 # 6000
 
-max_move = 5000  # 5400
-max_turn = 6600  # right
-min_turn = 5400  # left
+print('position head tilt: ', servo.getPosition(HEADTILT))
+
+servo.setTarget(HEADTURN, headTurn)
+servo.setTarget(HEADTILT, headTurn)
+servo.setTarget(BODY, body)
 
 
-# create maeskjslk thing
-servo = maestro.Controller()
+max_move = 5200  # 5400
+max_turn = 6800  # right
+min_turn = 5200  # left
+
+
 
 def myContourArea(cnt):
    x,y,w,h = cv.boundingRect(cnt)
@@ -63,7 +74,8 @@ def go_straight():
     motors = max_move
     servo.setTarget(MOTORS, motors)
 
-def turn_right():
+def turn_left():
+# def turn_right():
     global motors, turn
     print('right')
     # decrease stright? just by a little? so it still has momentum?
@@ -77,7 +89,8 @@ def turn_right():
     turn = max_turn
     servo.setTarget(TURN, turn)
 
-def turn_left():
+def turn_right():
+# def turn_left(): # Is this a problem????
     global motors, turn
     print('left')
     servo.setTarget(MOTORS, 6000)  # max_move-400)
@@ -113,7 +126,7 @@ try:
         # and occupied/unoccupied text
         img = frame.array
         width, height, channel = img.shape
-        img = img[int(1*height/3):height, 20:width-20]
+        # img = img[int(1*height/6):height, 20:width-20]
         # __,new_image = cv.threshold(img, 0, 400, cv.THRESH_BINARY)
         # cv.imshow("newimg", new_image)
         blur = cv.blur(img,(7,7))
@@ -152,7 +165,7 @@ try:
         contoursS.reverse()
         # if myContourArea(contoursS[-1]) == 0:
         #    del contourssS[-1]
-        print(len(contoursS))
+        # print(len(contoursS))
         if len(contoursS) == 0:
             paused = True
 
@@ -173,6 +186,8 @@ try:
 
             cx = int(M['m10']/div_by)
             cy = int(M['m01']/div_by)
+            # dist = cv.pointPolygonTest(cnt,(cx, cy),True)
+            # print(dist)
             break
         # print('({}, {})'.format(cx, cy))
 
@@ -214,9 +229,11 @@ try:
 
         # if the `q` key was pressed, break from the loop
         if key == ord("q"):
+            print('position head tilt: ', servo.getPosition(HEADTILT))
             stop()
             break
         if key == ord("p"):
+            print('position head tilt: ', servo.getPosition(HEADTILT))
             paused = not paused
             print('paused is now: ', paused)
             print('Stopping motors so can look at the vision stuff! :) ')
