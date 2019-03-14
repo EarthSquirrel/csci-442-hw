@@ -9,6 +9,7 @@ img = cv.imread(sys.argv[1], cv.IMREAD_COLOR)
 cv.namedWindow('Contours', cv.WINDOW_NORMAL)
 cv.namedWindow('edge contour', cv.WINDOW_NORMAL)
 
+cv.namedWindow('filtered', cv.WINDOW_NORMAL)
 def contourArea(cnt):
    x,y,w,h = cv.boundingRect(cnt)
    return w*h
@@ -21,8 +22,8 @@ blur = cv.blur(img,(7,7))
 
 kernel = np.ones((10,10), np.uint8)
 
-img_erosion = cv.erode(blur, kernel, iterations=2)
-img_dilation = cv.dilate(img_erosion, kernel, iterations=3)
+img_erosion = cv.erode(blur, kernel, iterations=4)
+img_dilation = cv.dilate(img_erosion, kernel, iterations=2)
 
 # color filtering stuff, save for later
 hsv = cv.cvtColor(img_dilation, cv.COLOR_BGR2HSV)
@@ -32,10 +33,11 @@ hsv_min, hsv_max = (0, 40, 90), (75, 250, 255)
 color_filter = cv.inRange(hsv, hsv_min, hsv_max)
 # pic = cv.Canny(hsv, 150, 170)
 
-# cv.imshow('hsv',color_filter) # hsv)
+cv.imshow('filtered',color_filter) # hsv)
 
 edges = cv.Canny(color_filter, 35, 150, L2gradient=True)
-dil_edges = cv.dilate(edges, kernel, iterations=1)
+dil_edges = edges.copy()
+dil_edges = cv.dilate(edges, kernel, iterations=3)
 # cv.imshow('edges', edges)
 
 contours, hierarchy = cv.findContours(dil_edges, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
