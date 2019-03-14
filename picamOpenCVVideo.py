@@ -34,7 +34,7 @@ headTilt = 6000 # 0 # 6000
 print('position head tilt: ', servo.getPosition(HEADTILT))
 
 servo.setTarget(HEADTURN, headTurn)
-servo.setTarget(HEADTILT, headTurn)
+servo.setTarget(HEADTILT, headTilt)
 servo.setTarget(BODY, body)
 
 
