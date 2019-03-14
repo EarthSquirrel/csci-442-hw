@@ -1,5 +1,5 @@
 import tkinter as tk
-import maestro                                                     
+import maestro
 
 MOTORS = 1
 TURN = 2

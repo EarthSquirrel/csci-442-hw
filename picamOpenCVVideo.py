@@ -10,7 +10,7 @@ import maestro
 # initialize the camera and grab a reference to the raw camera capture
 camera = PiCamera()
 camera.resolution = (640, 480)
-camera.framerate = 5 # 15  #   32
+camera.framerate = 5 # 5 # 15  #   32
 rawCapture = PiRGBArray(camera, size=(640, 480))
 
 # allow the camera to warmup
@@ -25,7 +25,7 @@ HEADTURN = 3
 motors = 6000
 turn = 6000
 
-max_move = 5400
+max_move = 5000  # 5400
 max_turn = 6600  # right
 min_turn = 5400  # left
 
@@ -49,36 +49,45 @@ def start_motors():
         time.sleep(0.01)
 
 
-
 def go_straight():
     global motors, turn, max_move
     print('straight')
     servo.setTarget(TURN, 6000)
+    # Do we have to build up to this?
+    """
     while motors > max_move:
         motors -= 300
         servo.setTarget(MOTORS, motors)
         time.sleep(0.01)
+    """
     motors = max_move
     servo.setTarget(MOTORS, motors)
 
 def turn_right():
     global motors, turn
     print('right')
+    # decrease stright? just by a little? so it still has momentum?
+    servo.setTarget(MOTORS, 6000)  # max_move-400)
+    """
     while turn < max_turn:
         turn += 400
         servo.setTarget(TURN, turn)
         time.sleep(0.01)
+    """
     turn = max_turn
     servo.setTarget(TURN, turn)
 
 def turn_left():
     global motors, turn
     print('left')
+    servo.setTarget(MOTORS, 6000)  # max_move-400)
+    """
     while turn > min_turn:
         print('left: {}'.format(turn))
         turn -= 400
         servo.setTarget(TURN, turn)
         time.sleep(0.01)
+    """
     turn = min_turn
     servo.setTarget(TURN, turn)
 
@@ -91,6 +100,7 @@ def stop():
 
 
 started = False
+paused =  False
 prev_cog = (0, 0)
 cog = (0, 0)
 
@@ -116,11 +126,14 @@ try:
         hsv = cv.cvtColor(img_dilation, cv.COLOR_BGR2HSV)
         # hsv = img_dilation.copy()
 
+        # robot lab settings
         hsv_min, hsv_max = (0, 40, 90), (75, 250, 255)
+        # cs lab
+        # hsv_min, hsv_max = (0, 0, 90), (75, 250, 255)
         color_filter = cv.inRange(hsv, hsv_min, hsv_max)
         # pic = cv.Canny(hsv, 150, 170)
 
-        # cv.imshow('hsv',color_filter) # hsv)
+        cv.imshow('hsv',color_filter) # hsv)
 
         edges = cv.Canny(color_filter, 35, 150, L2gradient=True)
         dil_edges = cv.dilate(edges, kernel, iterations=1)
@@ -138,13 +151,19 @@ try:
         contoursS = sorted(contours, key=lambda x: myContourArea(x))
         contoursS.reverse()
         # if myContourArea(contoursS[-1]) == 0:
-        #    del contoursS[-1]
+        #    del contourssS[-1]
+        print(len(contoursS))
+        if len(contoursS) == 0:
+            paused = True
 
         cx, cy = 0, 0
+
         for cnt in contoursS:
             x,y,w,h = cv.boundingRect(cnt)
             cv.rectangle(thresh, (x,y), (x+w,y+h,), (0,255,0), 2)
-
+            if width*height < 10:
+                print('area is {} too small. No contours found.'.format(x*y))
+                paused = True
             M = cv.moments(cnt)
             # print(myContourArea(cnt))
             if M['m00'] == 0:
@@ -160,8 +179,8 @@ try:
         cog = (cx, cy)
         cv.rectangle(thresh,  (cx,cy), (cx+29, cy+20),(0,0,255), 2)
 
-        if started:
-            angle_cut = .05
+        if started  and not paused:
+            angle_cut = 0.01 # .02
             angle = np.math.atan2(np.linalg.det([cog,prev_cog]),np.dot(cog,prev_cog))
             # print(angle)  # np.degrees(angle))
             print(angle)
@@ -171,8 +190,14 @@ try:
                 turn_left()
             else:
                 go_straight()
-        else:
+
+        elif not started and not paused:
             start_motors()
+
+        elif paused:
+            pass
+        else:
+            print('there is an options missing here!!!')
 
         cv.drawContours(tours, contours, -1, (0,0,255), -1)
         cv.imshow('Contours', thresh)
@@ -191,7 +216,9 @@ try:
         if key == ord("q"):
             stop()
             break
-        if key == ord("s"):
+        if key == ord("p"):
+            paused = not paused
+            print('paused is now: ', paused)
             print('Stopping motors so can look at the vision stuff! :) ')
             stop()
 
