@@ -29,7 +29,7 @@ motors = 6000
 turn = 6000
 body = 6000
 headTurn = 6000
-headTilt = 0 # 6000 # 0 # 6000
+headTilt = 1530 # 4000 # 6000
 
 print('position head tilt: ', servo.getPosition(HEADTILT))
 
@@ -126,8 +126,8 @@ try:
         color_filter = cv.inRange(hsv, hsv_min, hsv_max)
         # pic = cv.Canny(hsv, 150, 170)
 
-        kernel = np.ones((15,15), np.uint8)
-        color_filter = cv.dilate(color_filter, kernel, iterations=3)
+        # kernel = np.ones((15,15), np.uint8)
+        # color_filter = cv.dilate(color_filter, kernel, iterations=3)
         cv.imshow('hsv',color_filter) # hsv)
 
         edges = cv.Canny(color_filter, 35, 150, L2gradient=True)
@@ -182,13 +182,13 @@ try:
         cv.rectangle(thresh,  (cx,cy), (cx+29, cy+20),(0,0,255), 2)
 
         if started  and not paused:
-            angle_cut = 0.015  # 0.01 # .02
+            angle_cut = 0.01  # 0.01 # .02
             angle = np.math.atan2(np.linalg.det([cog,prev_cog]),np.dot(cog,prev_cog))
             # print(angle)  # np.degrees(angle))
-            if angle > angle_cut:
+            if angle < -angle_cut:
                 print('right: ', angle)
                 turn_right()
-            elif angle < -angle_cut:
+            elif angle > angle_cut:
                 print('left: ', angle)
                 turn_left()
             else:
