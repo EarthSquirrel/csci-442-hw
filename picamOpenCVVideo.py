@@ -73,7 +73,7 @@ def turn_left(weight):
     # if under it's going right, so switch to left
     if turn < 6000:
         turn = 6000
-    turn += int(weight(400))
+    turn += int(weight*400)
     if turn > max_turn:
         turn = max_turn
     servo.setTarget(TURN, turn)
@@ -87,7 +87,7 @@ def turn_right(weight):
     if turn > 6000:
         turn = 6000
     # increment the turn
-    turn -= int(weight(400))
+    turn -= int(weight*400)
     # check if it's less than min turn, then set to min turn
     if turn < min_turn:
         turn = min_turn
