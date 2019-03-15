@@ -177,7 +177,7 @@ try:
         # print('({}, {})'.format(cx, cy))
 
         cog = (cx, cy)
-        cv.rectangle(thresh,  (cx,cy), (cx+29, cy+20),(0,0,255), 2)
+        cv.rectangle(thresh, (cx,cy), (cx+29, cy+20),(0,0,255), 2)
 
         if started  and not paused:
             angle_cut = 0.01 # .02
