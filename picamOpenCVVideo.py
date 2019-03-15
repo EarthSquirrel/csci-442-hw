@@ -40,8 +40,8 @@ servo.setTarget(BODY, body)
 # LEFT AT 8000!!!!!!
 # WE TESTED THIS!!!!
 max_move = 5200  # 5400
-max_turn = 6600  # right
-min_turn = 5400  # left
+max_turn = 6600  # left
+min_turn = 5400  # right
 
 
 
@@ -73,19 +73,22 @@ def turn_left():
     # if under it's going right, so switch to left
     if turn < 6000:
         turn = 6000
-    turn += 400
+    turn += 200
     if turn > max_turn:
         turn = max_turn
     servo.setTarget(TURN, turn)
 
+# less than 6000
 def turn_right():
 # def turn_left(): # Is this a problem????
     global motors, turn
     # print('left')
     servo.setTarget(MOTORS, 6000)  # max_move-400)
-    if turn < 6000:
+    if turn > 6000:
         turn = 6000
-    turn -= 400
+    # increment the turn
+    turn -= 200
+    # check if it's less than min turn, then set to min turn
     if turn < min_turn:
         turn = min_turn
     servo.setTarget(TURN, turn)
@@ -156,13 +159,7 @@ try:
 
         contoursS = sorted(contours, key=lambda x: myContourArea(x))
         contoursS.reverse()
-        # for cnt in contoursS.copy():
-        #    x,y,w,h = cv.boundingRect(cnt)
-        #    if
 
-        # if myContourArea(contoursS[-1]) == 0:
-        #    del contourssS[-1]
-        # print(len(contoursS))
         if len(contoursS) == 0:
             paused = True
 
@@ -183,8 +180,6 @@ try:
 
             cx = int(M['m10']/div_by)
             cy = int(M['m01']/div_by)
-            # dist = cv.pointPolygonTest(cnt,(cx, cy),True)
-            # print(dist)
             break
         # print('({}, {})'.format(cx, cy))
 
