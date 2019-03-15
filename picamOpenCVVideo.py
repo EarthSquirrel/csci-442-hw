@@ -65,7 +65,7 @@ def go_straight():
     servo.setTarget(MOTORS, motors)
 
 # greater than 6000
-def turn_left():
+def turn_left(weight):
 # def turn_right():
     global motors, turn
     # print('right')
@@ -73,13 +73,13 @@ def turn_left():
     # if under it's going right, so switch to left
     if turn < 6000:
         turn = 6000
-    turn += 200
+    turn += int(weight(400))
     if turn > max_turn:
         turn = max_turn
     servo.setTarget(TURN, turn)
 
 # less than 6000
-def turn_right():
+def turn_right(weight):
 # def turn_left(): # Is this a problem????
     global motors, turn
     # print('left')
@@ -87,7 +87,7 @@ def turn_right():
     if turn > 6000:
         turn = 6000
     # increment the turn
-    turn -= 200
+    turn -= int(weight(400))
     # check if it's less than min turn, then set to min turn
     if turn < min_turn:
         turn = min_turn
@@ -190,12 +190,28 @@ try:
             angle_cut = 0.01  # 0.01 # .02
             angle = np.math.atan2(np.linalg.det([cog,prev_cog]),np.dot(cog,prev_cog))
             # print(angle)  # np.degrees(angle))
+            # check which side of center cx is on
+            weight = 1
+            # right quad, turn right
+            if cx > width/2 and angle > angle_cut:
+                # turn faster
+                weight = (cx - width/2)/(width/2)
+            # right quad, turn left
+            elif cx > width/2 and angle < -angle_cut:
+                weight = (width - cx)/(w/2)
+                # left quad, right turn
+            elif cx < width/2 and angle > angle_cut:
+                weight = 1-(cx/(w/2))
+            # left quad, left turn
+            elif cx < width/2 and angle < -angle_cut:
+                weight = cx/(width/2)
+
             if angle < -angle_cut:
                 print('left: ', angle)
-                turn_left()
+                turn_left(weight)
             elif angle > angle_cut:
                 print('right: ', angle)
-                turn_right()
+                turn_right(weight)
             else:
                 print('straight: ', angle)
                 go_straight()
