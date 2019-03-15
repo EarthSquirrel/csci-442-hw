@@ -37,7 +37,8 @@ servo.setTarget(HEADTURN, headTurn)
 servo.setTarget(HEADTILT, headTilt)
 servo.setTarget(BODY, body)
 
-
+# LEFT AT 8000!!!!!!
+# WE TESTED THIS!!!!
 max_move = 5200  # 5400
 max_turn = 6600  # right
 min_turn = 5400  # left
@@ -63,12 +64,16 @@ def go_straight():
     motors = max_move
     servo.setTarget(MOTORS, motors)
 
+# greater than 6000
 def turn_left():
 # def turn_right():
     global motors, turn
     # print('right')
     servo.setTarget(MOTORS, 6000)  # max_move-400)
-    turn += 200
+    # if under it's going right, so switch to left
+    if turn < 6000:
+        turn = 6000
+    turn += 400
     if turn > max_turn:
         turn = max_turn
     servo.setTarget(TURN, turn)
@@ -78,7 +83,9 @@ def turn_right():
     global motors, turn
     # print('left')
     servo.setTarget(MOTORS, 6000)  # max_move-400)
-    turn -= 200
+    if turn < 6000:
+        turn = 6000
+    turn -= 400
     if turn < min_turn:
         turn = min_turn
     servo.setTarget(TURN, turn)
@@ -114,7 +121,10 @@ try:
         kernel = np.ones((10,10), np.uint8)
 
         img_erosion = cv.erode(blur, kernel, iterations=2)
-        img_dilation = cv.dilate(img_erosion, kernel, iterations=3)
+        img_dilation = cv.dilate(img_erosion, kernel, iterations=1)
+        # kernel = np.ones((10,10), np.uint8)
+        img_dilation = cv.dilate(img_dilation, kernel, iterations=3)
+
         # color filtering stuff, save for later
         hsv = cv.cvtColor(img_dilation, cv.COLOR_BGR2HSV)
         # hsv = img_dilation.copy()
@@ -186,11 +196,11 @@ try:
             angle = np.math.atan2(np.linalg.det([cog,prev_cog]),np.dot(cog,prev_cog))
             # print(angle)  # np.degrees(angle))
             if angle < -angle_cut:
-                print('right: ', angle)
-                turn_right()
-            elif angle > angle_cut:
                 print('left: ', angle)
                 turn_left()
+            elif angle > angle_cut:
+                print('right: ', angle)
+                turn_right()
             else:
                 print('straight: ', angle)
                 go_straight()
