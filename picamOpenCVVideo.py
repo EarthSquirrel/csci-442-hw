@@ -10,7 +10,7 @@ import maestro
 # initialize the camera and grab a reference to the raw camera capture
 camera = PiCamera()
 camera.resolution = (640, 480)
-camera.framerate = 5 # 5 # 15  #   32
+camera.framerate = 8 # 5 # 5 # 15  #   32
 rawCapture = PiRGBArray(camera, size=(640, 480))
 
 # allow the camera to warmup
@@ -29,18 +29,18 @@ motors = 6000
 turn = 6000
 body = 6000
 headTurn = 6000
-headTilt = 6000 # 0 # 6000
+headTilt = 1530 # 4000 # 6000
 
 print('position head tilt: ', servo.getPosition(HEADTILT))
 
 servo.setTarget(HEADTURN, headTurn)
-servo.setTarget(HEADTILT, headTurn)
+servo.setTarget(HEADTILT, headTilt)
 servo.setTarget(BODY, body)
 
 
 max_move = 5200  # 5400
-max_turn = 6800  # right
-min_turn = 5200  # left
+max_turn = 6600  # right
+min_turn = 5400  # left
 
 
 
@@ -49,9 +49,6 @@ def myContourArea(cnt):
    return w*h
 
 # control the motors
-def head_down():
-    pass
-
 def start_motors():
     global motors
     while motors > max_move - 200:
@@ -59,49 +56,31 @@ def start_motors():
         servo.setTarget(MOTORS, motors)
         time.sleep(0.01)
 
-
 def go_straight():
     global motors, turn, max_move
-    print('straight')
+    # print('straight')
     servo.setTarget(TURN, 6000)
-    # Do we have to build up to this?
-    """
-    while motors > max_move:
-        motors -= 300
-        servo.setTarget(MOTORS, motors)
-        time.sleep(0.01)
-    """
     motors = max_move
     servo.setTarget(MOTORS, motors)
 
 def turn_left():
 # def turn_right():
     global motors, turn
-    print('right')
-    # decrease stright? just by a little? so it still has momentum?
+    # print('right')
     servo.setTarget(MOTORS, 6000)  # max_move-400)
-    """
-    while turn < max_turn:
-        turn += 400
-        servo.setTarget(TURN, turn)
-        time.sleep(0.01)
-    """
-    turn = max_turn
+    turn += 200
+    if turn > max_turn:
+        turn = max_turn
     servo.setTarget(TURN, turn)
 
 def turn_right():
 # def turn_left(): # Is this a problem????
     global motors, turn
-    print('left')
+    # print('left')
     servo.setTarget(MOTORS, 6000)  # max_move-400)
-    """
-    while turn > min_turn:
-        print('left: {}'.format(turn))
-        turn -= 400
-        servo.setTarget(TURN, turn)
-        time.sleep(0.01)
-    """
-    turn = min_turn
+    turn -= 200
+    if turn < min_turn:
+        turn = min_turn
     servo.setTarget(TURN, turn)
 
 def stop():
@@ -127,6 +106,7 @@ try:
         img = frame.array
         width, height, channel = img.shape
         # img = img[int(1*height/6):height, 20:width-20]
+        img = img[int(1*height/6):height, 0:width] # int(width*.25):int(width*.75)]
         # __,new_image = cv.threshold(img, 0, 400, cv.THRESH_BINARY)
         # cv.imshow("newimg", new_image)
         blur = cv.blur(img,(7,7))
@@ -146,9 +126,12 @@ try:
         color_filter = cv.inRange(hsv, hsv_min, hsv_max)
         # pic = cv.Canny(hsv, 150, 170)
 
+        # kernel = np.ones((15,15), np.uint8)
+        # color_filter = cv.dilate(color_filter, kernel, iterations=3)
         cv.imshow('hsv',color_filter) # hsv)
 
         edges = cv.Canny(color_filter, 35, 150, L2gradient=True)
+        kernel = np.ones((10,10), np.uint8)
         dil_edges = cv.dilate(edges, kernel, iterations=1)
         cv.imshow('edges', dil_edges)
 
@@ -163,6 +146,10 @@ try:
 
         contoursS = sorted(contours, key=lambda x: myContourArea(x))
         contoursS.reverse()
+        # for cnt in contoursS.copy():
+        #    x,y,w,h = cv.boundingRect(cnt)
+        #    if
+
         # if myContourArea(contoursS[-1]) == 0:
         #    del contourssS[-1]
         # print(len(contoursS))
@@ -195,15 +182,17 @@ try:
         cv.rectangle(thresh,  (cx,cy), (cx+29, cy+20),(0,0,255), 2)
 
         if started  and not paused:
-            angle_cut = 0.01 # .02
+            angle_cut = 0.01  # 0.01 # .02
             angle = np.math.atan2(np.linalg.det([cog,prev_cog]),np.dot(cog,prev_cog))
             # print(angle)  # np.degrees(angle))
-            print(angle)
-            if angle > angle_cut:
+            if angle < -angle_cut:
+                print('right: ', angle)
                 turn_right()
-            elif angle < -angle_cut:
+            elif angle > angle_cut:
+                print('left: ', angle)
                 turn_left()
             else:
+                print('straight: ', angle)
                 go_straight()
 
         elif not started and not paused:
@@ -229,11 +218,9 @@ try:
 
         # if the `q` key was pressed, break from the loop
         if key == ord("q"):
-            print('position head tilt: ', servo.getPosition(HEADTILT))
             stop()
             break
         if key == ord("p"):
-            print('position head tilt: ', servo.getPosition(HEADTILT))
             paused = not paused
             print('paused is now: ', paused)
             print('Stopping motors so can look at the vision stuff! :) ')
