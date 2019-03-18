@@ -10,7 +10,7 @@ import maestro
 # initialize the camera and grab a reference to the raw camera capture
 camera = PiCamera()
 camera.resolution = (640, 480)
-camera.framerate = 8 # 5 # 5 # 15  #   32
+camera.framerate = 10 # 5 # 5 # 15  #   32
 rawCapture = PiRGBArray(camera, size=(640, 480))
 
 # allow the camera to warmup
@@ -39,9 +39,9 @@ servo.setTarget(BODY, body)
 
 # LEFT AT 8000!!!!!!
 # WE TESTED THIS!!!!
-max_move = 5200  # 5400
+max_move = 5000  # 5400
 max_turn = 6600  # left
-min_turn = 5400  # right
+min_turn = 5000  # right
 
 
 
@@ -73,7 +73,7 @@ def turn_left(weight):
     # if under it's going right, so switch to left
     if turn < 6000:
         turn = 6000
-    turn += int(weight(400))
+    turn += int(weight*200)+100
     if turn > max_turn:
         turn = max_turn
     servo.setTarget(TURN, turn)
@@ -87,7 +87,7 @@ def turn_right(weight):
     if turn > 6000:
         turn = 6000
     # increment the turn
-    turn -= int(weight(400))
+    turn -= (int(weight*200)+200)
     # check if it's less than min turn, then set to min turn
     if turn < min_turn:
         turn = min_turn
