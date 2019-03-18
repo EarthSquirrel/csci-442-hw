@@ -1,9 +1,7 @@
-
-import numpy as np
 import cv2 as cv
 
-face_cascade = cv.CascadeClassifier('data/haarcascades/haarcascade_frontalface_default.xml')
-eye_cascade = cv.CascadeClassifier('data/haarcascades/haarcascade_eye.xml')
+face_cascade = cv.CascadeClassifier('haarcascade_frontalface_default.xml')
+eye_cascade = cv.CascadeClassifier('haarcascade_eye.xml')
 
 cv.namedWindow("Image", cv.WINDOW_NORMAL)
 
@@ -19,11 +17,7 @@ for (x,y,w,h) in faces:
     eyes = eye_cascade.detectMultiScale(roi_gray)
     for (ex,ey,ew,eh) in eyes:
         cv.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
-##eyes = eye_cascade.detectMultiScale(gray)
-##for (ex,ey,ew,eh) in eyes:
-##    cv.rectangle(img,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
 
 cv.imshow('Image',img)
 cv.waitKey(0)
 cv.destroyAllWindows()
-
