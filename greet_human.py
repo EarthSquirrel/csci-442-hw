@@ -10,6 +10,23 @@ camera.resolution = (640, 480)
 camera.framerate = 32
 rawCapture = PiRGBArray(camera, size=(640, 480))
 
+def faces_found(frame):
+    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+    real_faces = []
+    for (x,y,w,h) in faces:
+        eyes = eye_cascade.detectMultiScale(roi_gray)
+        # If there are no eyes, don't use this face
+        if len(eyes) == 0:
+            continue
+        #Otherwise, we use it and return it to our list of return faces
+        real_faces.append((x,y,w,h))
+        cv.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2)
+        roi_gray = gray[y:y+h, x:x+w]
+        roi_color = frame[y:y+h, x:x+w]
+        for (ex,ey,ew,eh) in eyes:
+            cv.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
+    return real_faces
+
 # allow the camera to warmup
 time.sleep(0.1)
 
