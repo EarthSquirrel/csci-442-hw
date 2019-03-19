@@ -5,6 +5,7 @@ import time
 import cv2 as cv
 import maestro
 import sys
+import threading
 
 # initialize the camera and grab a reference to the raw camera capture
 camera = PiCamera()
@@ -44,15 +45,28 @@ def stop():
     servo.setTarget(HEADTILT, headTilt)
     servo.setTarget(BODY, body)
 
+
 stop()
 
-max_turn = 7600 # max 7900
-min_turn = 1600 # min 1510
-tilt_positions = [1600, 6000, 7000]
+max_turn = 7500 # max 7900
+min_turn = 4000 # min 1510
+max_time = 5
+
+tilt_positions = [5000, 6000, 7000]
 tilt_loc = 0  # location in positions
 increasing = True  # tell what direction it's going
 eof = False  # Move every other frame
+face_timer = max_time + 1
 
+
+def time_the_faces():
+    global face_timer
+    face_timer += 1
+    # print('\t\tface_timer: ', face_timer)
+    threading.Timer(1, time_the_faces).start()
+
+
+time_the_faces()
 face_found = False
 def faces_found(frame):
     gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
@@ -84,33 +98,42 @@ try:
 
         # TODO: Scanning code here!
         # use tild position and increment
-        if increasing:
-            headTurn += 100
-            if headTurn > max_turn:
-                headTurn = max_turn
-                increasing = False
-        else:
-            headTurn -= 100
-            if headTurn < min_turn:
-                headTurn = min_turn
-                increasing = True
-                tilt_loc += 1
-                if tilt_loc > 2:
-                    # maxed out array, return to o
-                    tilt_loc= 0
-                headTilt = tilt_positions[tilt_loc]
-        servo.setTarget(HEADTURN, headTurn)
-        servo.setTarget(HEADTILT, headTilt)
+        if not face_found:
+            if increasing:
+                headTurn += 100
+                if headTurn > max_turn:
+                    headTurn = max_turn
+                    increasing = False
+            else:
+                headTurn -= 100
+                if headTurn < min_turn:
+                    headTurn = min_turn
+                    increasing = True
+                    tilt_loc += 1
+                    if tilt_loc > 2:
+                        # maxed out array, return to o
+                        tilt_loc= 0
+                    headTilt = tilt_positions[tilt_loc]
+            servo.setTarget(HEADTURN, headTurn)
+            servo.setTarget(HEADTILT, headTilt)
 
-        # check if max or min scan head turn values been found
+            # check if max or min scan head turn values been found
 
-        # run facial recognition on image
+            # run facial recognition on image
         faces = faces_found(image)
-        for (x,y,w,h) in faces:
+        if len(faces) > 0:
+            face_found = True
+            face_timer = 0
             print('found a face!')
+        elif face_timer < max_time:
+            face_found = True
+        else:
+            # The time has run out and there are no faces
+            face_found = False
+
+        # draw rectangle around the face
+        for (x,y,w,h) in faces:
             cv.rectangle(image,(x,y),(x+w,y+h),(255,0,0),2)
-        # stop scanning
-        # TODO: Make face_found boolean
 
         cv.imshow("Frame", image)
         key = cv.waitKey(1) & 0xFF
@@ -128,3 +151,4 @@ except: # catch *all* exceptions
     # keys.arrow (65)
     stop()
     print('Stopped motors due to an error')
+    sys.exit()
