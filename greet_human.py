@@ -58,12 +58,12 @@ increasing = True  # tell what direction it's going
 eof = False  # Move every other frame
 face_timer = max_time + 1
 
-
 def time_the_faces():
     global face_timer
     face_timer += 1
-    # print('\t\tface_timer: ', face_timer)
-    threading.Timer(1, time_the_faces).start()
+    print('\t\tface_timer: ', face_timer)
+    if face_timer > -5:
+        threading.Timer(1,time_the_faces).start()
 
 
 time_the_faces()
@@ -77,7 +77,7 @@ def faces_found(frame):
     for (x,y,w,h) in faces:
         roi_gray = gray[y:y+h, x:x+w]
         eyes = eye_cascade.detectMultiScale(roi_gray)
-        # If there are no eyes, don't use this face
+        # If there are no eyes1111, don't use this face
         if len(eyes) == 0:
             continue
         #Otherwise, we use it and return it to our list of return faces
@@ -151,4 +151,4 @@ except: # catch *all* exceptions
     # keys.arrow (65)
     stop()
     print('Stopped motors due to an error')
-    sys.exit()
+    face_timer = -10
