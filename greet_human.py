@@ -14,6 +14,7 @@ camera.framerate = 10
 rawCapture = PiRGBArray(camera, size=(640, 480))
 face_cascade = cv.CascadeClassifier('haarcascade_frontalface_default.xml')
 eye_cascade = cv.CascadeClassifier('haarcascade_eye.xml')
+face_cascade = cv.CascadeClassifier('lbpcascade_frontalface_improved.xml')
 
 servo = maestro.Controller()
 
