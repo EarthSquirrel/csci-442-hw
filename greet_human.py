@@ -5,6 +5,7 @@ import time
 import cv2 as cv
 import maestro
 import sys
+import threading
 
 # initialize the camera and grab a reference to the raw camera capture
 camera = PiCamera()
@@ -44,15 +45,56 @@ def stop():
     servo.setTarget(HEADTILT, headTilt)
     servo.setTarget(BODY, body)
 
+
 stop()
 
-max_turn = 7600 # max 7900
-min_turn = 1600 # min 1510
-tilt_positions = [1600, 6000, 7000]
+max_turn = 7500 # max 7900
+min_turn = 4000 # min 1510
+max_time = 5
+
+tilt_positions = [5000, 6000, 7000]
 tilt_loc = 0  # location in positions
 increasing = True  # tell what direction it's going
 eof = False  # Move every other frame
+face_timer = max_time + 1
+END_PROGRAM = False # use this to kill the threads
+move_wait_time = 2.0  # time to wait before moving to new position head
 
+def time_the_faces():
+    if END_PROGRAM:
+        return
+    global face_timer
+    face_timer += 1
+    print('\t\tface_timer: ', face_timer)
+    threading.Timer(1,time_the_faces).start()
+
+def search():
+    global increasing, headTurn, headTilt, tilt_loc
+    if END_PROGRAM:
+        return
+    if increasing:
+        headTurn += 100
+        if headTurn > max_turn:
+            headTurn = max_turn
+            increasing = False
+    else:
+        headTurn -= 100
+        if headTurn < min_turn:
+            headTurn = min_turn
+            increasing = True
+            tilt_loc += 1
+            if tilt_loc > 2:
+                # maxed out array, return to o
+                tilt_loc= 0
+            headTilt = tilt_positions[tilt_loc]
+    servo.setTarget(HEADTURN, headTurn)
+    servo.setTarget(HEADTILT, headTilt)
+
+    if not face_found:
+        threading.Timer(move_wait_time, search).start()
+
+
+threading.Timer(1, time_the_faces).start()
 face_found = False
 def faces_found(frame):
     gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
@@ -63,7 +105,7 @@ def faces_found(frame):
     for (x,y,w,h) in faces:
         roi_gray = gray[y:y+h, x:x+w]
         eyes = eye_cascade.detectMultiScale(roi_gray)
-        # If there are no eyes, don't use this face
+        # If there are no eyes1111, don't use this face
         if len(eyes) == 0:
             continue
         #Otherwise, we use it and return it to our list of return faces
@@ -84,33 +126,48 @@ try:
 
         # TODO: Scanning code here!
         # use tild position and increment
-        if increasing:
-            headTurn += 100
-            if headTurn > max_turn:
-                headTurn = max_turn
-                increasing = False
-        else:
-            headTurn -= 100
-            if headTurn < min_turn:
-                headTurn = min_turn
-                increasing = True
-                tilt_loc += 1
-                if tilt_loc > 2:
-                    # maxed out array, return to o
-                    tilt_loc= 0
-                headTilt = tilt_positions[tilt_loc]
-        servo.setTarget(HEADTURN, headTurn)
-        servo.setTarget(HEADTILT, headTilt)
+        """
+        if not face_found:
+            if increasing:
+                headTurn += 100
+                if headTurn > max_turn:
+                    headTurn = max_turn
+                    increasing = False
+            else:
+                headTurn -= 100
+                if headTurn < min_turn:
+                    headTurn = min_turn
+                    increasing = True
+                    tilt_loc += 1
+                    if tilt_loc > 2:
+                        # maxed out array, return to o
+                        tilt_loc= 0
+                    headTilt = tilt_positions[tilt_loc]
+            servo.setTarget(HEADTURN, headTurn)
+            servo.setTarget(HEADTILT, headTilt)
 
-        # check if max or min scan head turn values been found
+            # check if max or min scan head turn values been found
 
-        # run facial recognition on image
+            # run facial recognition on image
+        """
         faces = faces_found(image)
-        for (x,y,w,h) in faces:
+        if len(faces) > 0:
+            face_found = True
+            face_timer = 0
             print('found a face!')
+        elif face_timer < max_time:
+            face_found = True
+        elif face_found: # TODO: This is not working correctly, the timing is
+        # all messed up and needs to be fixed!!!!! But that's tomorrow's problem
+
+            # The time has run out and there are no faces
+            face_found = False
+            threading.Timer(move_wait_time, search).start()
+        else:
+
+        # draw rectangle around the face
+        for (x,y,w,h) in faces:
             cv.rectangle(image,(x,y),(x+w,y+h),(255,0,0),2)
-        # stop scanning
-        # TODO: Make face_found boolean
 
         cv.imshow("Frame", image)
         key = cv.waitKey(1) & 0xFF
@@ -126,5 +183,7 @@ except: # catch *all* exceptions
     e = sys.exc_info()
     print(e)
     # keys.arrow (65)
+    END_PROGRAM = True
     stop()
     print('Stopped motors due to an error')
+    face_timer = -10
