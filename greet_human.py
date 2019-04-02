@@ -11,7 +11,7 @@ camera.framerate = 32
 rawCapture = PiRGBArray(camera, size=(640, 480))
 
 def faces_found(frame):
-    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+    faces = face_cascade.detectMultiScale(frame, 1.3, 5)
     real_faces = []
     for (x,y,w,h) in faces:
         eyes = eye_cascade.detectMultiScale(roi_gray)
