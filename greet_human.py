@@ -60,6 +60,7 @@ eof = False  # Move every other frame
 face_timer = max_time + 1
 END_PROGRAM = False # use this to kill the threads
 move_wait_time = .5  # time to wait before moving to new position head
+frame_itter = 0
 
 def time_the_faces():
     if END_PROGRAM:
@@ -70,7 +71,7 @@ def time_the_faces():
     threading.Timer(1,time_the_faces).start()
 
 def search():
-    print('searching.....')
+    # print('searching.....')
     global increasing, headTurn, headTilt, tilt_loc
     if END_PROGRAM:
         stop()
@@ -99,7 +100,20 @@ def search():
 
 threading.Timer(1, time_the_faces).start()
 face_found = False
+chase_human = False
 search()
+
+def reposition():
+	servo.setTarget(HEADTURN, 6000)
+
+	motors = 6000
+
+	if head_pos < 6000: # Turn right
+		motors -= 100
+	elif head_pos > 6000: # Turn left
+		motors += 100
+	servo.setTarget(MOTORS, motors)
+
 def faces_found(frame):
     gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
     faces = face_cascade.detectMultiScale(gray, 1.3, 5)
@@ -124,57 +138,49 @@ time.sleep(0.1)
 try:
 # capture frames from the camera
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+        frame_itter += 1
         # grab the raw NumPy array representing the image, then initialize the timestamp
         # and occupied/unoccupied text
         image = frame.array
 
-        # TODO: Scanning code here!
-        # use tild position and increment
-        """
-        if not face_found:
-            if increasing:
-                headTurn += 100
-                if headTurn > max_turn:
-                    headTurn = max_turn
-                    increasing = False
-            else:
-                headTurn -= 100
-                if headTurn < min_turn:
-                    headTurn = min_turn
-                    increasing = True
-                    tilt_loc += 1
-                    if tilt_loc > 2:
-                        # maxed out array, return to o
-                        tilt_loc= 0
-                    headTilt = tilt_positions[tilt_loc]
-            servo.setTarget(HEADTURN, headTurn)
-            servo.setTarget(HEADTILT, headTilt)
-
-            # check if max or min scan head turn values been found
-
-            # run facial recognition on image
-        """
         faces = faces_found(image)
-        if len(faces) > 0:
+
+
+        # the first time the face found
+        if len(faces) > 0 and not face_found:
+            print('greet the human!!!!')
+            face_found = True
+			head_pos = servo.getPosition(HEADTURN)
+			reposition(head_pos))
+            face_timer = 0
+            cv.imwrite('frame' + str(frame_itter) + '.png', image)
+            # TODO: Call speaking thing
+            # TODO: Start chasing the human (find location of human)
+
+        # The face has been found before
+        elif len(faces) > 0:
             face_found = True
             face_timer = 0
             print('found a face!')
 
-        # Time u ntil face spotted not met yet, good to still have face
+        # lost the face, but still not for long enough
         elif face_timer < max_time:
             face_found = True
 
         # The timer is up!
-        elif face_found: # TODO: This is not working correctly, the timing is
-        # all messed up and needs to be fixed!!!!! But that's tomorrow's problem
-
+        # No longer chacing human from here down
+        elif face_found:
             # The time has run out and there are no faces
             face_found = False
+            # assume the robot is chacing the human or doing something, stop it
+            stop()
+            chase_human = False
             threading.Timer(move_wait_time, search).start()
         else:
             # do nothing here, keeps going as normal, no face
             # ..........
             face_found = False
+            chase_human = False
             # threading.Timer(move_wait_time, search).start()
 
 
