@@ -14,7 +14,7 @@ camera.framerate = 10
 rawCapture = PiRGBArray(camera, size=(640, 480))
 face_cascade = cv.CascadeClassifier('haarcascade_frontalface_default.xml')
 eye_cascade = cv.CascadeClassifier('haarcascade_eye.xml')
-face_cascade = cv.CascadeClassifier('lbpcascade_frontalface_improved.xml')
+# face_cascade = cv.CascadeClassifier('lbpcascade_frontalface_improved.xml')
 
 servo = maestro.Controller()
 
@@ -59,7 +59,7 @@ increasing = True  # tell what direction it's going
 eof = False  # Move every other frame
 face_timer = max_time + 1
 END_PROGRAM = False # use this to kill the threads
-move_wait_time = 2.0  # time to wait before moving to new position head
+move_wait_time = .5  # time to wait before moving to new position head
 
 def time_the_faces():
     if END_PROGRAM:
@@ -70,8 +70,10 @@ def time_the_faces():
     threading.Timer(1,time_the_faces).start()
 
 def search():
+    print('searching.....')
     global increasing, headTurn, headTilt, tilt_loc
     if END_PROGRAM:
+        stop()
         return
     if increasing:
         headTurn += 100
@@ -97,6 +99,7 @@ def search():
 
 threading.Timer(1, time_the_faces).start()
 face_found = False
+search()
 def faces_found(frame):
     gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
     faces = face_cascade.detectMultiScale(gray, 1.3, 5)
@@ -156,8 +159,12 @@ try:
             face_found = True
             face_timer = 0
             print('found a face!')
+
+        # Time u ntil face spotted not met yet, good to still have face
         elif face_timer < max_time:
             face_found = True
+
+        # The timer is up!
         elif face_found: # TODO: This is not working correctly, the timing is
         # all messed up and needs to be fixed!!!!! But that's tomorrow's problem
 
@@ -165,6 +172,11 @@ try:
             face_found = False
             threading.Timer(move_wait_time, search).start()
         else:
+            # do nothing here, keeps going as normal, no face
+            # ..........
+            face_found = False
+            # threading.Timer(move_wait_time, search).start()
+
 
         # draw rectangle around the face
         for (x,y,w,h) in faces:
