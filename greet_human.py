@@ -125,7 +125,7 @@ def reposition(turn_dir, frame):
         turn -= 100
         if turn < min_turn:
             turn = min_turn
-	elif turn_dir == 'left': # Turn left
+	elif turn_dir == 'left':
         turn += 100
 		if turn > max_turn:
             turn = max_turn
