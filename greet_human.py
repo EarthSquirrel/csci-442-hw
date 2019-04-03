@@ -125,11 +125,11 @@ def reposition(turn_dir, frame):
         turn -= 100
         if turn < min_turn:
             turn = min_turn
-	elif turn_dir == 'left':
+    elif turn_dir == 'left':
         turn += 100
-		if turn > max_turn:
+        if turn > max_turn:
             turn = max_turn
-	servo.setTarget(TURN, turn)
+    servo.setTarget(TURN, turn)
 
 def faces_found(frame):
     gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
@@ -170,6 +170,7 @@ try:
             talk()
             head_pos = servo.getPosition(HEADTURN)
             servo.setTarget(HEADTURN, 6000)
+            chase_human = True
             reposition(head_pos, frame)
             face_timer = 0
             cv.imwrite('frame' + str(frame_itter) + '.png', image)
@@ -182,7 +183,7 @@ try:
             face_timer = 0
             print('found a face!')
 
-        elif face_found and not chasing_human:
+        elif face_found and not chase_human:
             reposition(head_pos)
 
 
