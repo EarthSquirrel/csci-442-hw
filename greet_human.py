@@ -120,6 +120,7 @@ def talk():
     print("Exiting Sends")
 
 def reposition(turn_dir, frame):
+    # Hey.
     turn = 6000
     if turn_dir == 'right':
         turn -= 100
