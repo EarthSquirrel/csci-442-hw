@@ -63,7 +63,7 @@ increasing = True  # tell what direction it's going
 eof = False  # Move every other frame
 face_timer = max_time + 1
 END_PROGRAM = False # use this to kill the threads
-move_wait_time = .75  # time to wait before moving to new position head
+move_wait_time = 1.0  # time to wait before moving to new position head
 frame_itter = 0
 repositioning = False
 
@@ -108,6 +108,7 @@ threading.Timer(1, time_the_faces).start()
 face_found = False
 chase_human = False
 search()
+head_pos = servo.getPosition(HEADTURN)
 
 def talk():
     IP = '10.200.22.237'
@@ -144,9 +145,12 @@ def reposition(turn_dir, head_pos, frame):
     servo.setTarget(TURN, turn)
     time.sleep(.5)
 
+def go_forward():
+    servo.setTarget(MOTORS, 5200)
+
 def faces_found(frame):
     gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, 1.1, 7)
+    faces = face_cascade.detectMultiScale(gray, 1.1)
     servo.setTarget(TURN, turn)
     real_faces = []
     # if len(faces) > 0:
@@ -178,7 +182,11 @@ try:
         faces = faces_found(image)
         if chase_human:
             print("Chase the human!!!!")
-            stop()
+            face = faces[0]
+            if face[2] > width * .5:
+                stop()
+            else:
+                go_forward()
         elif repositioning:
             print("repositioning...")
             face_found = True
@@ -189,7 +197,7 @@ try:
                 face_center = faces[0][0] + 0.5*faces[0][2]
                 if abs(face_center - width/2) < width/5:
                     print('Face in center, stoping things')
-                    stop()
+                    servo.setTarget(TURN, 6000)
                     repositioning = False
                     chase_human = True
         # elif len(faces) > 0 and not chase_human:
@@ -210,7 +218,7 @@ try:
             servo.setTarget(HEADTILT, 6000)
             reposition(turn_dir, head_pos, frame)
             face_timer = 0
-            cv.imwrite('frame' + str(frame_itter) + '.png', image)
+            # cv.imwrite('frame' + str(frame_itter) + '.png', image)
             # TODO: Start chasing the human (find location of human)
 
         # The face has been found before
