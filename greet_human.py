@@ -96,11 +96,12 @@ def search():
                 # maxed out array, return to o
                 tilt_loc= 0
             headTilt = tilt_positions[tilt_loc]
+    print("Head Pos: ", headTurn)
     servo.setTarget(HEADTURN, headTurn)
     servo.setTarget(HEADTILT, headTilt)
 
-    if not face_found:
-        threading.Timer(move_wait_time, search).start()
+    #if not face_found:
+        #threading.Timer(move_wait_time, search).start()
 
 
 threading.Timer(1, time_the_faces).start()
@@ -122,24 +123,23 @@ def talk():
 
 def reposition(turn_dir, head_pos, frame):
     global turn
-    move_dist = abs(6000 - head_pos)/6000 * 1 + .25
+    move_dist = abs(6000 - head_pos)/6000 * 1.5
     print('this mean move distance is.... ', move_dist)
-    print('repositioning head')
-    if turn_dir == 'right':
-        print('reposition to the right')
+    if turn_dir == 'left':
+        print('reposition to the left')
         # turn -= 200
         turn = min_turn
         if turn < min_turn:
             turn = min_turn
-    elif turn_dir == 'left':
-        print('reposition to the left')
+    elif turn_dir == 'right':
+        print('reposition to the right')
         # turn += 200
         turn = max_turn
         if turn > max_turn:
             turn = max_turn
     print('\t' + str(servo.getPosition(TURN)))
     servo.setTarget(TURN, turn)
-    time.sleep(move_dist)
+    time.sleep(0.25)
     turn = 6000
     servo.setTarget(TURN, turn)
     time.sleep(.5)
@@ -176,25 +176,41 @@ try:
         width, height, channel = image.shape
 
         faces = faces_found(image)
-
+        if chase_human:
+            print("Chase the human!!!!")
+            stop()
+        elif repositioning:
+            print("repositioning...")
+            face_found = True
+            face_timer = 0
+            reposition(turn_dir, head_pos, frame)
+            if len(faces) > 0:
+                print('found a face!')
+                face_center = faces[0][0] + 0.5*faces[0][2]
+                if abs(face_center - width/2) < width/5:
+                    print('Face in center, stoping things')
+                    stop()
+                    repositioning = False
+                    chase_human = True
+        # elif len(faces) > 0 and not chase_human:
         # the first time the face found
-        if len(faces) > 0 and not face_found:
+        elif len(faces) > 0 and not face_found:
             print('greet the human!!!!')
+            repositioning = True
             face_found = True
             # talk()
             head_pos = servo.getPosition(HEADTURN)
-            repositioning = True
             if head_pos < 6000:
-                print("Turn dir = right")
-                turn_dir = 'right'
-            elif head_pos:
                 print("Turn dir = left")
-                turn_dir = "left"
+                turn_dir = 'left'
+            elif head_pos:
+                print("Turn dir = right")
+                turn_dir = "right"
             servo.setTarget(HEADTURN, 6000)
+            servo.setTarget(HEADTILT, 6000)
             reposition(turn_dir, head_pos, frame)
             face_timer = 0
             cv.imwrite('frame' + str(frame_itter) + '.png', image)
-            # TODO: Call speaking thing
             # TODO: Start chasing the human (find location of human)
 
         # The face has been found before
@@ -202,27 +218,18 @@ try:
             face_found = True
             face_timer = 0
             print('found a face!')
-        elif len(faces) > 0 and not chase_human:
-            face_found = True
-            face_timer = 0
-            print('found a face!')
-            face_center = faces[0][0] + 0.5*faces[0][2]
-            if abs(face_center - width/2) < width/5:
-                print('Face in center, stoping things')
-                stop()
-                repositioning = False
-                chase_human = True
+        # elif len(faces) > 0 and not chase_human:
+            # elif face_found and not chase_human:
 
-
-        elif face_found and not chase_human:
-            reposition(turn_dir, head_pos, frame)
+            # print('should be in location to chase the human down!!!!')
+            # reposition(turn_dir, head_pos, frame)
             # check if face in correct location on screen?
             # if yes, chase human true and repositioning false?
             # x y w h
 
         # lost the face, but still not for long enough
-        elif face_timer < max_time:
-            face_found = True
+        # elif face_timer < max_time:
+        #    face_found = True
 
         # The timer is up!
         # No longer chacing human from here down
@@ -232,14 +239,14 @@ try:
             # assume the robot is chacing the human or doing something, stop it
             stop()
             chase_human = False
-            threading.Timer(move_wait_time, search).start()
+            # threading.Timer(move_wait_time, search).start()
         else:
             # do nothing here, keeps going as normal, no face
             # ..........
             face_found = False
             chase_human = False
+            threading.Timer(move_wait_time, search).start()
             # threading.Timer(move_wait_time, search).start()
-
 
         # draw rectangle around the face
         for (x,y,w,h) in faces:
