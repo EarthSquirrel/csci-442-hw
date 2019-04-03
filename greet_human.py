@@ -6,6 +6,7 @@ import cv2 as cv
 import maestro
 import sys
 import threading
+from client import ClientSocket
 
 # initialize the camera and grab a reference to the raw camera capture
 camera = PiCamera()
@@ -49,8 +50,11 @@ def stop():
 
 stop()
 
-max_turn = 7500 # max 7900
-min_turn = 4000 # min 1510
+max_move = 5000  # 5400
+max_turn = 6600  # left
+min_turn = 5000  # right
+max_head_turn = 7500 # max 7900
+min_head_turn = 4000 # min 1510
 max_time = 5
 
 tilt_positions = [5000, 6000, 7000]
@@ -78,13 +82,13 @@ def search():
         return
     if increasing:
         headTurn += 100
-        if headTurn > max_turn:
-            headTurn = max_turn
+        if headTurn > max_head_turn:
+            headTurn = max_head_turn
             increasing = False
     else:
         headTurn -= 100
-        if headTurn < min_turn:
-            headTurn = min_turn
+        if headTurn < min_head_turn:
+            headTurn = min_head_turn
             increasing = True
             tilt_loc += 1
             if tilt_loc > 2:
@@ -103,16 +107,29 @@ face_found = False
 chase_human = False
 search()
 
-def reposition():
-	servo.setTarget(HEADTURN, 6000)
+def talk():
+    IP = '10.200.22.237'
+    # IP = sys.argv[1]
+    PORT = 5010
+    client = ClientSocket(IP, PORT)
+    ##client.start()
 
-	motors = 6000
+    for i in ["hello human", "How are you", "Sorry, you must die now"]:
+        time.sleep(1)
+        client.sendData(i)
+    print("Exiting Sends")
 
-	if head_pos < 6000: # Turn right
-		motors -= 100
-	elif head_pos > 6000: # Turn left
-		motors += 100
-	servo.setTarget(MOTORS, motors)
+def reposition(turn_dir, frame):
+    turn = 6000
+    if turn_dir == 'right':
+        turn -= 100
+        if turn < min_turn:
+            turn = min_turn
+	elif turn_dir == 'left': # Turn left
+        turn += 100
+		if turn > max_turn:
+            turn = max_turn
+	servo.setTarget(TURN, turn)
 
 def faces_found(frame):
     gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
@@ -150,8 +167,10 @@ try:
         if len(faces) > 0 and not face_found:
             print('greet the human!!!!')
             face_found = True
-			head_pos = servo.getPosition(HEADTURN)
-			reposition(head_pos))
+            talk()
+            head_pos = servo.getPosition(HEADTURN)
+            servo.setTarget(HEADTURN, 6000)
+            reposition(head_pos, frame)
             face_timer = 0
             cv.imwrite('frame' + str(frame_itter) + '.png', image)
             # TODO: Call speaking thing
@@ -162,6 +181,10 @@ try:
             face_found = True
             face_timer = 0
             print('found a face!')
+
+        elif face_found and not chasing_human:
+            reposition(head_pos)
+
 
         # lost the face, but still not for long enough
         elif face_timer < max_time:

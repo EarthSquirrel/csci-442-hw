@@ -1,7 +1,7 @@
 import socket, time
 import threading
 import queue
-
+import sys
 globalVar = ""
 
 class ClientSocket(threading.Thread):
@@ -9,7 +9,7 @@ class ClientSocket(threading.Thread):
         super(ClientSocket, self).__init__()
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.connect((IP, PORT))
-  
+
         print ('connected')
         self.alive = threading.Event()
         self.alive.set()
@@ -21,7 +21,7 @@ class ClientSocket(threading.Thread):
             print (data)
             globalVar = data
         except IOError as e:
-            if e.errno == errno.EWOULDBLOCK:
+            if e.errno == e.errno.EWOULDBLOCK:
                 pass
 
     def sendData(self, sendingString):
@@ -38,22 +38,24 @@ class ClientSocket(threading.Thread):
             globalVar = data
             if(data == "0"):
                 self.killSocket()
-            
-           
-            
+
+
+
     def killSocket(self):
         self.alive.clear()
         self.s.close()
         print("Goodbye")
         exit()
-            
 
-IP = '10.200.28.12'
+"""
+IP = '10.200.22.237'
+IP = str(sys.argv[1])
 PORT = 5010
 client = ClientSocket(IP, PORT)
 ##client.start()
 
 for i in ["hello human", "How are you", "Sorry, you must die now"]:
     time.sleep(1)
-    client.sendData(i)            
+    client.sendData(i)
 print("Exiting Sends")
+"""
