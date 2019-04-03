@@ -51,7 +51,7 @@ def stop():
 stop()
 
 max_move = 5000  # 5400
-max_turn = 6600  # left
+max_turn = 7000  # left
 min_turn = 5000  # right
 max_head_turn = 7500 # max 7900
 min_head_turn = 4000 # min 1510
@@ -63,8 +63,9 @@ increasing = True  # tell what direction it's going
 eof = False  # Move every other frame
 face_timer = max_time + 1
 END_PROGRAM = False # use this to kill the threads
-move_wait_time = .5  # time to wait before moving to new position head
+move_wait_time = .75  # time to wait before moving to new position head
 frame_itter = 0
+repositioning = False
 
 def time_the_faces():
     if END_PROGRAM:
@@ -81,12 +82,12 @@ def search():
         stop()
         return
     if increasing:
-        headTurn += 100
+        headTurn += 200
         if headTurn > max_head_turn:
             headTurn = max_head_turn
             increasing = False
     else:
-        headTurn -= 100
+        headTurn -= 200
         if headTurn < min_head_turn:
             headTurn = min_head_turn
             increasing = True
@@ -119,21 +120,34 @@ def talk():
         client.sendData(i)
     print("Exiting Sends")
 
-def reposition(turn_dir, frame):
-    turn = 6000
+def reposition(turn_dir, head_pos, frame):
+    global turn
+    move_dist = abs(6000 - head_pos)/6000 * 1 + .25
+    print('this mean move distance is.... ', move_dist)
+    print('repositioning head')
     if turn_dir == 'right':
-        turn -= 100
+        print('reposition to the right')
+        # turn -= 200
+        turn = min_turn
         if turn < min_turn:
             turn = min_turn
     elif turn_dir == 'left':
-        turn += 100
+        print('reposition to the left')
+        # turn += 200
+        turn = max_turn
         if turn > max_turn:
             turn = max_turn
+    print('\t' + str(servo.getPosition(TURN)))
     servo.setTarget(TURN, turn)
+    time.sleep(move_dist)
+    turn = 6000
+    servo.setTarget(TURN, turn)
+    time.sleep(.5)
 
 def faces_found(frame):
     gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+    faces = face_cascade.detectMultiScale(gray, 1.1, 7)
+    servo.setTarget(TURN, turn)
     real_faces = []
     # if len(faces) > 0:
         # print('Faces total found: {}'.format(len(faces)))
@@ -151,7 +165,7 @@ def faces_found(frame):
 
 # allow the camera to warmup
 time.sleep(0.1)
-
+turn_dir = "boom"
 try:
 # capture frames from the camera
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
@@ -159,19 +173,25 @@ try:
         # grab the raw NumPy array representing the image, then initialize the timestamp
         # and occupied/unoccupied text
         image = frame.array
+        width, height, channel = image.shape
 
         faces = faces_found(image)
-
 
         # the first time the face found
         if len(faces) > 0 and not face_found:
             print('greet the human!!!!')
             face_found = True
-            talk()
+            # talk()
             head_pos = servo.getPosition(HEADTURN)
+            repositioning = True
+            if head_pos < 6000:
+                print("Turn dir = right")
+                turn_dir = 'right'
+            elif head_pos:
+                print("Turn dir = left")
+                turn_dir = "left"
             servo.setTarget(HEADTURN, 6000)
-            chase_human = True
-            reposition(head_pos, frame)
+            reposition(turn_dir, head_pos, frame)
             face_timer = 0
             cv.imwrite('frame' + str(frame_itter) + '.png', image)
             # TODO: Call speaking thing
@@ -182,10 +202,23 @@ try:
             face_found = True
             face_timer = 0
             print('found a face!')
+        elif len(faces) > 0 and not chase_human:
+            face_found = True
+            face_timer = 0
+            print('found a face!')
+            face_center = faces[0][0] + 0.5*faces[0][2]
+            if abs(face_center - width/2) < width/5:
+                print('Face in center, stoping things')
+                stop()
+                repositioning = False
+                chase_human = True
+
 
         elif face_found and not chase_human:
-            reposition(head_pos)
-
+            reposition(turn_dir, head_pos, frame)
+            # check if face in correct location on screen?
+            # if yes, chase human true and repositioning false?
+            # x y w h
 
         # lost the face, but still not for long enough
         elif face_timer < max_time:
