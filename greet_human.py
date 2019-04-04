@@ -120,12 +120,13 @@ def search():
 threading.Timer(1, time_the_faces).start()
 face_found = False
 chase_human = False
+stopped = False
 search()
 head_pos = servo.getPosition(HEADTURN)
 
 def talk():
     IP = '10.200.56.146'
-    IP = '10.200.41.30'
+    IP = '10.200.2.215'
     # IP = sys.argv[1]
     PORT = 5010
     client = ClientSocket(IP, PORT)
@@ -202,29 +203,40 @@ try:
         if chase_human:
             print("Chase the human!!!!")
             # The face has been lost too long, stop before people die
-            if face_timer > 5:
+            if face_timer > 4 and not stopped:
                 print('Was chacing, but lost face for too long. Stop!')
                 stop()
                 face_found = False
                 chase_human = False
                 repositioning = False
                 searching = True
+                stopped = True
             elif len(faces) > 0:
                 face = faces[0]
                 print('Face {} of screen'.format(str(face[2]/width*100)))
                 # stop if width face is too much
-                print('width cutoff: ', str(width * .14))
-                if face[2]/width > .13:
+                if stopped:
+                    if face_timer > 7:
+                        face_found = False
+                        chase_human = False
+                        repositioning = False
+                        searching = True
+                        stopped = False
+                elif face[2]/width > .17:
                     print('Was chasing, but got a big face so stop!')
                     stop()
+                    print('*************DONE!*********************')
+                    stopped = True
+                else:
+                    go_forward()
+            elif stopped:
+                if face_timer > 7:
                     face_found = False
                     chase_human = False
                     repositioning = False
                     searching = True
-                    print('*************DONE!*********************')
-                    face[5]
-                else:
-                    go_forward()
+                    stopped = False
+
             else:
                 go_forward()
 
