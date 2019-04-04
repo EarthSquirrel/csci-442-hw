@@ -50,12 +50,19 @@ def stop():
 
 stop()
 
-max_move = 5000  # 5400
+max_move = 5200  # 5400
 max_turn = 7200  # left
 min_turn = 4800  # right
 max_head_turn = 7500 # max 7900
 min_head_turn = 4000 # min 1510
 max_time = 5
+
+# In the hall
+max_move = 5600
+#max_turn = 6800
+#min_turn = 5000
+
+
 
 tilt_positions = [5000, 6000, 7000]
 tilt_loc = 0  # location in positions
@@ -87,11 +94,11 @@ def time_reposition():
         threading.Timer(1,time_reposition).start()
 
 def search():
-    print('\t\tsearching.....')
     global increasing, headTurn, headTilt, tilt_loc, searching
     if END_PROGRAM:
         stop()
         return
+    print('\t\tsearching.....')
     if increasing:
         headTurn += 200
         if headTurn > max_head_turn:
@@ -125,13 +132,10 @@ search()
 head_pos = servo.getPosition(HEADTURN)
 
 def talk():
-    IP = '10.200.56.146'
     IP = '10.200.2.215'
-    # IP = sys.argv[1]
     PORT = 5010
     client = ClientSocket(IP, PORT)
     ##client.start()
-    print('\tI am about to speak')
     for i in ["hello human", "How are you", "Sorry, you must die now"]:
         client.sendData(i)
         print('\tspeaking: ', i)
@@ -154,7 +158,8 @@ def reposition(turn_dir, head_pos, frame):
         if turn > max_turn:
             turn = max_turn
     else:
-        print('\tYa something broke....')
+        print('Going streight')
+        # print('\tYa, something broke....')
     servo.setTarget(TURN, turn)
     time.sleep(0.25)
     # print('\trepositioning turn value: ' + str(servo.getPosition(TURN)))
@@ -163,11 +168,11 @@ def reposition(turn_dir, head_pos, frame):
     time.sleep(.5)
 
 def go_forward():
-    servo.setTarget(MOTORS, 5200)
+    servo.setTarget(MOTORS, max_move)
 
 def faces_found(frame):
     gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, 1.1)
+    faces = face_cascade.detectMultiScale(gray, 1.1, minSize=(10,10), maxSize=(width, height))
     servo.setTarget(TURN, turn)
     real_faces = []
     # if len(faces) > 0:
@@ -199,17 +204,31 @@ try:
         # and occupied/unoccupied text
         image = frame.array
         width, height, channel = image.shape
+        if increasing: # moving robot left
+            pass
+        image = image[0:height, int(height/8):int(7*width/8)] # int(width*.25):int(width*.75)]
         faces = faces_found(image)
-        if chase_human:
+        # found human and sees no face
+        if stopped and len(faces) == 0:
+            # needs to wait seven seconds before searching again
+            print('Lost the face, now I will wait 7 seconds...')
+            time.sleep(7)
+            stopped = False
+            face_found = False
+            repositioning = False
+            chase_human = False
+        # TODO: What happens with stop down here?
+        elif chase_human:
             print("Chase the human!!!!")
             # The face has been lost too long, stop before people die
-            if face_timer > 4 and not stopped:
+            if face_timer > 3 and not stopped:
                 print('Was chacing, but lost face for too long. Stop!')
+                print('*************DONE!*********************')
                 stop()
                 face_found = False
                 chase_human = False
                 repositioning = False
-                searching = True
+                searching = False
                 stopped = True
             elif len(faces) > 0:
                 face = faces[0]
@@ -220,7 +239,7 @@ try:
                         face_found = False
                         chase_human = False
                         repositioning = False
-                        searching = True
+                        searching = False
                         stopped = False
                 elif face[2]/width > .17:
                     print('Was chasing, but got a big face so stop!')
@@ -277,10 +296,12 @@ try:
             threading.Timer(0, talk).start()
             head_pos = servo.getPosition(HEADTURN)
             face_loc = faces[0][0] + faces[0][2]/2
-            if (head_pos < 6000 and face_loc < width/2) or (head_pos > 6000 and face_loc < width/2):
+            # if (head_pos < 6000 and face_loc < width/2) or (head_pos > 6000 and face_loc < width/2):
+            if head_pos > 6000:
                 print("Turn dir = right")
                 turn_dir = "right"
-            elif (head_pos > 6000 and face_loc > width/2) or (head_pos < 6000 and face_loc > width/2):
+            # elif (head_pos > 6000 and face_loc > width/2) or (head_pos < 6000 and face_loc > width/2):
+            if head_pos < 5000:
                 print("Turn dir = left")
                 turn_dir = 'left'
             headTilt, headTurn = 6000, 6000
