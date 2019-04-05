@@ -204,7 +204,7 @@ try:
             print("Chase the human!!!!")
             # The face has been lost too long, stop before people die
             if face_timer > 4 and not stopped:
-                print('Was chacing, but lost face for too long. Stop!')
+                print('Was chasing, but lost face for too long. Stop!')
                 stop()
                 face_found = False
                 chase_human = False
