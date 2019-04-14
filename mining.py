@@ -86,6 +86,7 @@ max_move = 5600
 start_field = True
 avoidance = False
 mining = False
+changedState = False
 
 # global accross all states
 hasBall = False
@@ -100,7 +101,7 @@ getBall = False
 # make a dictionary to be able to print values easily
 bool_vals = {'start_field': start_field, 'avoidance': avoidance, 'mining': mining,
              'hasBall': hasBall, 'droppedBall': droppedBall, 'sawHuman': sawHuman,
-             'getBall': getBall}
+             'getBall': getBall, 'changedState': changedState}
 
 # allow the camera to warmup
 time.sleep(0.1)
@@ -112,6 +113,10 @@ try:
         width, height, channel = image.shape
 
         if start_field:
+            if changedState:
+                # talk
+                changedState = False
+
             if hasBall:
                 # drop the ball in the cup
                 pass
@@ -120,6 +125,10 @@ try:
                 pass
 
         elif avoidance:
+            if changedState:
+                # talk
+                changedState = False
+
             if hasBall:
                 # move to start_field
                 pass
@@ -130,6 +139,10 @@ try:
                 print('this else is silly')
 
         elif mining:
+            if changedState:
+                # talk
+                changedState = False
+
             if hasBall:
                 # scan for the human
                 if sawHuman:
