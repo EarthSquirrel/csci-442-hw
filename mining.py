@@ -12,6 +12,13 @@ from client import ClientSocket
 ############################ methods #########################################
 ##############################################################################
 
+def print_bool_vals():
+    keys = list(bool_vals.keys())
+    output = 'Boolean values:\n'
+    for key in keys:
+        output += '\t' + key + ': ' + bool_vals[key]
+
+
 def stop():
     global motors, turn, body, headTurn, headTilt
     motors = 6000
@@ -90,6 +97,10 @@ droppedBall = False
 sawHuman = False
 getBall = False
 
+# make a dictionary to be able to print values easily
+bool_vals = {'start_field': start_field, 'avoidance': avoidance, 'mining': mining,
+             'hasBall': hasBall, 'droppedBall': droppedBall, 'sawHuman': sawHuman,
+             'getBall': getBall}
 
 # allow the camera to warmup
 time.sleep(0.1)
@@ -104,7 +115,7 @@ try:
             if hasBall:
                 # drop the ball in the cup
                 pass
-            else:
+            elif not hasBall:
                 # go to avoidance to get the ball
                 pass
 
