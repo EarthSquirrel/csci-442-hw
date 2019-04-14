@@ -204,8 +204,67 @@ try:
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         image = frame.array
         width, height, channel = image.shape
+        # TODO: Check if robot crossed a line into a new state
+        print('check_crossed')
+        raw_img = raw_img[int(1*height/6):height, 0:width] # int(width*.25):int(width*.75)]
+        blur = cv.blur(raw_img,(7,7))
 
-        check_crossed(image)
+        kernel = np.ones((10,10), np.uint8)
+
+        img_erosion = cv.erode(blur, kernel, iterations=2)
+        img_dilation = cv.dilate(img_erosion, kernel, iterations=1)
+        img_dilation = cv.dilate(img_dilation, kernel, iterations=3)
+
+        # color filtering stuff, save for later
+        hsv = cv.cvtColor(img_dilation, cv.COLOR_BGR2HSV)
+
+        # robot lab settings
+        hsv_min, hsv_max = (0, 40, 90), (75, 250, 255)
+        color_filter = cv.inRange(hsv, hsv_min, hsv_max)
+
+        cv.imshow('hsv',color_filter) # hsv)
+
+        edges = cv.Canny(color_filter, 35, 150, L2gradient=True)
+        kernel = np.ones((10,10), np.uint8)
+        dil_edges = cv.dilate(edges, kernel, iterations=1)
+        cv.imshow('edges', dil_edges)
+
+        contours, hierarchy = cv.findContours(dil_edges, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
+        width_i, height_i, channel_i = raw_img.shape
+        tours = 255 * np.ones((width_i,height_i,1), np.uint8)
+        thresh = raw_img.copy()
+
+        cntsSorted = sorted(contours, key=lambda x: cv.contourArea(x))
+
+        contoursS = sorted(contours, key=lambda x: myContourArea(x))
+        contoursS.reverse()
+
+        if len(contoursS) == 0:
+            paused = True
+
+        cx, cy = 0, 0
+
+        for cnt in contoursS:
+            x,y,w,h = cv.boundingRect(cnt)
+            cv.rectangle(thresh, (x,y), (x+w,y+h,), (0,255,0), 2)
+            if width*height < 10:
+                print('area is {} too small. No contours found.'.format(x*y))
+                paused = True
+            M = cv.moments(cnt)
+            if M['m00'] == 0:
+                div_by =0.1
+            else:
+                div_by = M['m00']
+
+            cx = int(M['m10']/div_by)
+            cy = int(M['m01']/div_by)
+            break
+
+        cog = (cx, cy)
+        cv.rectangle(thresh, (cx,cy), (cx+29, cy+20),(0,0,255), 2)
+
+
+        # check_crossed(image)
         if start_field:
             if changedState:
                 # talk
