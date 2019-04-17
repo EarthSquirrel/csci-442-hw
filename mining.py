@@ -11,14 +11,27 @@ import numpy as np
 import traceback
 import logging
 
+
+
+
+# initialize the camera and grab a reference to the raw camera capture
+camera = PiCamera()
+camera.resolution = (640, 480)
+camera.framerate = 10
+rawCapture = PiRGBArray(camera, size=(640, 480))
+face_cascade = cv.CascadeClassifier('haarcascade_frontalface_default.xml')
+eye_cascade = cv.CascadeClassifier('haarcascade_eye.xml')
+# face_cascade = cv.CascadeClassifier('lbpcascade_frontalface_improved.xml')
+
 ##############################################################################
 ############################ methods #########################################
 ##############################################################################
 
 
 def check_crossed(raw_img):
+    global old_cog_line
     # TODO: Check if robot crossed a line into a new state
-    raw_img = raw_img[int(1*height/6):height, 0:width] # int(width*.25):int(width*.75)]
+    raw_img = raw_img[0:int(height/3), 0:width] # int(width*.25):int(width*.75)]
     blur = cv.blur(raw_img,(7,7))
     cv.imshow('raw_img', raw_img)
     kernel = np.ones((10,10), np.uint8)
@@ -34,7 +47,7 @@ def check_crossed(raw_img):
     hsv_min, hsv_max = (0, 40, 90), (75, 250, 255)
     color_filter = cv.inRange(hsv, hsv_min, hsv_max)
 
-    cv.imshow('hsv',color_filter) # hsv)
+    # cv.imshow('hsv',color_filter) # hsv)
 
     edges = cv.Canny(color_filter, 35, 150, L2gradient=True)
     kernel = np.ones((10,10), np.uint8)
@@ -74,11 +87,15 @@ def check_crossed(raw_img):
 
     cog = (cx, cy)
     cv.rectangle(thresh, (cx,cy), (cx+29, cy+20),(0,0,255), 2)
-
-    if old_cog_line[0] > cog[0]:
+    cv.imshow('contours', thresh)
+    if old_cog_line[1] > cog[1]:
         # moving forward towards line
+        print('True old: {} new: {}'.format(old_cog_line, cog))
+        old_cog_line = cog
         return True
     else:
+        print('False: old {} new {}'.format(old_cog_line, cog))
+        old_cog_line = cog
         return False
 
     return hsv
@@ -97,6 +114,7 @@ def print_bool_vals():
 
 
 def stop():
+    print('in stop: stopping motors')
     global motors, turn, body, headTurn, headTilt
     motors = 6000
     turn = 6000
@@ -111,6 +129,41 @@ def stop():
     servo.setTarget(BODY, body)
 
 
+def go_straight():
+    global motors, turn, max_move
+    # print('straight')
+    servo.setTarget(TURN, 6000)
+    motors = max_move
+    servo.setTarget(MOTORS, motors)
+
+# greater than 6000
+def turn_left(weight):
+# def turn_right():
+    global motors, turn
+    # print('right')
+    servo.setTarget(MOTORS, 6000)  # max_move-400)
+    # if under it's going right, so switch to left
+    if turn < 6000:
+        turn = 6000
+    turn += int(weight*200)+100
+    if turn > max_turn:
+        turn = max_turn
+    servo.setTarget(TURN, turn)
+
+# less than 6000
+def turn_right(weight):
+# def turn_left(): # Is this a problem????
+    global motors, turn
+    # print('left')
+    servo.setTarget(MOTORS, 6000)  # max_move-400)
+    if turn > 6000:
+        turn = 6000
+    # increment the turn
+    turn -= (int(weight*200)+200)
+    # check if it's less than min turn, then set to min turn
+    if turn < min_turn:
+        turn = min_turn
+    servo.setTarget(TURN, turn)
 def talk(say_this):
     PORT = 5010
     client = ClientSocket(IP, PORT)
@@ -127,14 +180,6 @@ def talk(say_this):
 ######################## INITIALIZE THINGS ##################################
 #############################################################################
 
-# initialize the camera and grab a reference to the raw camera capture
-camera = PiCamera()
-camera.resolution = (640, 480)
-camera.framerate = 10
-rawCapture = PiRGBArray(camera, size=(640, 480))
-face_cascade = cv.CascadeClassifier('haarcascade_frontalface_default.xml')
-eye_cascade = cv.CascadeClassifier('haarcascade_eye.xml')
-# face_cascade = cv.CascadeClassifier('lbpcascade_frontalface_improved.xml')
 
 
 # make and initialize motor information
@@ -154,7 +199,7 @@ headTurn = 6000
 headTilt = 6000
 
 
-max_move = 5200  # 5400
+max_move = 5400  # 5400
 max_turn = 7200  # left
 min_turn = 4800  # right
 max_head_turn = 7500 # max 7900
@@ -162,7 +207,7 @@ min_head_turn = 4000 # min 1510
 max_time = 5
 
 # In the hall
-max_move = 5600
+#max_move = 5600
 #max_turn = 6800
 #min_turn = 5000
 
@@ -191,8 +236,7 @@ getBall = False
 
 old_cog_line = (float('inf'), float('inf'))
 
-servo.setTarget(HEADTILT, 5000)
-
+servo.setTarget(HEADTILT, 2000)
 # make a dictionary to be able to print values easily
 bool_vals = {'start_field': start_field, 'avoidance': avoidance, 'mining': mining,
              'hasBall': hasBall, 'droppedBall': droppedBall, 'sawHuman': sawHuman,
@@ -201,13 +245,14 @@ bool_vals = {'start_field': start_field, 'avoidance': avoidance, 'mining': minin
 # allow the camera to warmup
 time.sleep(0.1)
 
+go_straight()
+
 try:
 # capture frames from the camera
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         image = frame.array
         width, height, channel = image.shape
         # TODO: Check if robot crossed a line into a new state
-        cv.imshow("Image", image)
         check_crossed(image)
         if start_field:
             if changedState:
@@ -265,12 +310,25 @@ try:
 
         else:
             print('Error: not a valid state!')
+        key = cv.waitKey(1) & 0xFF
 
+        # clear the stream in preparation for the next frame
         rawCapture.truncate(0)
 
+        # if the `q` key was pressed, break from the loop
+        if key == ord("q"):
+                stop()
+                break
 
+
+except KeyboardInterrupt:
+    print('Manually stopped')
+    stop()
 
 except Exception as e: # catch *all* exceptions
     stop()
     print(traceback.print_tb(e.__traceback__))
     print('Stopped motors due to an error')
+except:
+    print('Something didn"t catch....')
+    stop()
