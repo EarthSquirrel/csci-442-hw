@@ -31,7 +31,7 @@ eye_cascade = cv.CascadeClassifier('haarcascade_eye.xml')
 def check_crossed(raw_img):
     global old_cog_line
     # TODO: Check if robot crossed a line into a new state
-    raw_img = raw_img[0:int(height/3), 0:width] # int(width*.25):int(width*.75)]
+    raw_img = raw_img[0:int(height/3), int(width/4):int(2*width/4)] # int(width*.25):int(width*.75)]
     blur = cv.blur(raw_img,(7,7))
     cv.imshow('raw_img', raw_img)
     kernel = np.ones((10,10), np.uint8)
@@ -67,7 +67,7 @@ def check_crossed(raw_img):
     if len(contoursS) == 0:
         paused = True
 
-    cx, cy = 0, 0
+    cx, cy = -1, -1
 
     for cnt in contoursS:
         x,y,w,h = cv.boundingRect(cnt)
@@ -88,6 +88,7 @@ def check_crossed(raw_img):
     cog = (cx, cy)
     cv.rectangle(thresh, (cx,cy), (cx+29, cy+20),(0,0,255), 2)
     cv.imshow('contours', thresh)
+    """
     if old_cog_line[1] > cog[1]:
         # moving forward towards line
         print('True old: {} new: {}'.format(old_cog_line, cog))
@@ -97,7 +98,17 @@ def check_crossed(raw_img):
         print('False: old {} new {}'.format(old_cog_line, cog))
         old_cog_line = cog
         return False
-
+    """
+    if old_cog_line[1]> 0 and cog[1] == -1:
+        # moving forward towards line
+        # print('True old: {} new: {}'.format(old_cog_line, cog))
+        old_cog_line = cog
+        print('\n\n crossed line!!!!!')
+        return True
+    else:
+        # print('False: old {} new {}'.format(old_cog_line, cog))
+        old_cog_line = cog
+        return False
     return hsv
 
 def myContourArea(cnt):
@@ -120,7 +131,7 @@ def stop():
     turn = 6000
     body = 6000
     headTurn = 6000
-    headTilt = 6000
+    # headTilt = 6000
 
     servo.setTarget(MOTORS, motors)
     servo.setTarget(TURN, turn)
@@ -204,6 +215,7 @@ max_turn = 7200  # left
 min_turn = 4800  # right
 max_head_turn = 7500 # max 7900
 min_head_turn = 4000 # min 1510
+min_head_tilt = 1510
 max_time = 5
 
 # In the hall
@@ -236,7 +248,6 @@ getBall = False
 
 old_cog_line = (float('inf'), float('inf'))
 
-servo.setTarget(HEADTILT, 2000)
 # make a dictionary to be able to print values easily
 bool_vals = {'start_field': start_field, 'avoidance': avoidance, 'mining': mining,
              'hasBall': hasBall, 'droppedBall': droppedBall, 'sawHuman': sawHuman,
@@ -245,6 +256,8 @@ bool_vals = {'start_field': start_field, 'avoidance': avoidance, 'mining': minin
 # allow the camera to warmup
 time.sleep(0.1)
 
+headTilt = 1520
+servo.setTarget(HEADTILT, headTilt)
 go_straight()
 
 try:
@@ -252,10 +265,29 @@ try:
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         image = frame.array
         width, height, channel = image.shape
-        # TODO: Check if robot crossed a line into a new state
-        check_crossed(image)
+
+        # Change the state if crossed a line
+        if check_crossed(image):
+            changedState = True
+            # TODO: Check this logic works on the field
+            if start_field:
+                start_field = False
+                avoidance = True
+            elif avoidance:
+                avoidance = False
+                mining=True
+                # shoot me please
+                pass
+            elif mining:
+                mining = False
+                avoidance = True
+            else:
+                print('not in any state, there"s a problem!')
+
         if start_field:
             if changedState:
+                headTilt = min_head_tilt
+                servo.setTarget(HEADTILT, headTilt)
                 # talk
                 speaking = ['Crossed into starting field']
                 # talk(speaking)
@@ -272,7 +304,7 @@ try:
         elif avoidance:
             if changedState:
                 # talk
-                speaking = ['Crossed into starting field']
+                speaking = ['Crossed into avoidance']
                 # talk(speaking)
                 print(speaking)
                 changedState = False
@@ -288,8 +320,9 @@ try:
 
         elif mining:
             if changedState:
+                sawHuman = False
                 # talk
-                speaking = ['Crossed into starting field']
+                speaking = ['Crossed into mining']
                 # talk(speaking)
                 print(speaking)
                 changedState = False
@@ -317,9 +350,10 @@ try:
 
         # if the `q` key was pressed, break from the loop
         if key == ord("q"):
-                stop()
-                break
-
+            stop()
+            break
+        if key == ord('p'):
+            stop()
 
 except KeyboardInterrupt:
     print('Manually stopped')
