@@ -33,7 +33,7 @@ def check_crossed(raw_img):
     # TODO: Check if robot crossed a line into a new state
     raw_img = raw_img[0:int(height/3), int(width/4):int(2*width/4)] # int(width*.25):int(width*.75)]
     blur = cv.blur(raw_img,(7,7))
-    cv.imshow('raw_img', raw_img)
+    # cv.imshow('raw_img', raw_img)
     kernel = np.ones((10,10), np.uint8)
 
     img_erosion = cv.erode(blur, kernel, iterations=2)
@@ -52,7 +52,7 @@ def check_crossed(raw_img):
     edges = cv.Canny(color_filter, 35, 150, L2gradient=True)
     kernel = np.ones((10,10), np.uint8)
     dil_edges = cv.dilate(edges, kernel, iterations=1)
-    cv.imshow('edges', dil_edges)
+    # cv.imshow('edges', dil_edges)
 
     contours, hierarchy = cv.findContours(dil_edges, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
     width_i, height_i, channel_i = raw_img.shape
@@ -103,7 +103,7 @@ def check_crossed(raw_img):
         # moving forward towards line
         # print('True old: {} new: {}'.format(old_cog_line, cog))
         old_cog_line = cog
-        print('\n\n crossed line!!!!!')
+        # print('\n\n crossed line!!!!!')
         return True
     else:
         # print('False: old {} new {}'.format(old_cog_line, cog))
@@ -124,6 +124,11 @@ def print_bool_vals():
         output += '\t' + key + ': ' + bool_vals[key]
 
 
+def search_for_face(raw_img):
+    # TODO: COpy code from greet_human mostly here
+
+    pass
+
 def stop():
     print('in stop: stopping motors')
     global motors, turn, body, headTurn, headTilt
@@ -131,7 +136,7 @@ def stop():
     turn = 6000
     body = 6000
     headTurn = 6000
-    # headTilt = 6000
+    headTilt = 6000
 
     servo.setTarget(MOTORS, motors)
     servo.setTarget(TURN, turn)
@@ -146,6 +151,38 @@ def go_straight():
     servo.setTarget(TURN, 6000)
     motors = max_move
     servo.setTarget(MOTORS, motors)
+
+def search():
+    global increasing, headTurn, headTilt, tilt_loc, searching
+    if END_PROGRAM:
+        stop()
+        return
+    print('\t\tsearching.....')
+    if increasing:
+        headTurn += 200
+        if headTurn > max_head_turn:
+            headTurn = max_head_turn
+            increasing = False
+    else:
+        headTurn -= 200
+        if headTurn < min_head_turn:
+            headTurn = min_head_turn
+            increasing = True
+            """
+            tilt_loc += 1
+            if tilt_loc > 2:
+                # maxed out array, return to o
+                tilt_loc= 0
+            headTilt = tilt_positions[tilt_loc]
+            """
+    # print("\t\t\tSearching: Head Pos: ", headTurn)
+    servo.setTarget(HEADTURN, headTurn)
+    servo.setTarget(HEADTILT, headTilt)
+
+    if not sawHuman and searching:
+       threading.Timer(move_wait_time, search).start()
+    else: # no longer searching if found a face
+        searching = False
 
 # greater than 6000
 def turn_left(weight):
@@ -202,6 +239,8 @@ TURN = 2
 BODY = 0
 HEADTILT = 4
 HEADTURN = 3
+LEFTARM = 5
+LEFTHAND = 10
 
 motors = 6000
 turn = 6000
@@ -217,6 +256,11 @@ max_head_turn = 7500 # max 7900
 min_head_turn = 4000 # min 1510
 min_head_tilt = 1510
 max_time = 5
+min_arm = 0
+max_arm = 200
+min_hand = -50
+max_hand = 50
+
 
 # In the hall
 #max_move = 5600
@@ -241,12 +285,17 @@ hasBall = False
 
 # start_filed bools
 droppedBall = False
+old_cog_line = (float('inf'), float('inf'))
 
 # mining bools
 sawHuman = False
 getBall = False
+searching = False
+increasing = False
+move_wait_time = 1.0  # time to wait before moving to new position head
 
-old_cog_line = (float('inf'), float('inf'))
+# other
+END_PROGRAM = False
 
 # make a dictionary to be able to print values easily
 bool_vals = {'start_field': start_field, 'avoidance': avoidance, 'mining': mining,
@@ -256,9 +305,11 @@ bool_vals = {'start_field': start_field, 'avoidance': avoidance, 'mining': minin
 # allow the camera to warmup
 time.sleep(0.1)
 
-headTilt = 1520
+headTilt = 4000
 servo.setTarget(HEADTILT, headTilt)
-go_straight()
+# go_straight()
+avoidance = True
+start_field = False
 
 try:
 # capture frames from the camera
@@ -267,7 +318,7 @@ try:
         width, height, channel = image.shape
 
         # Change the state if crossed a line
-        if check_crossed(image):
+        if not searching and check_crossed(image):
             changedState = True
             # TODO: Check this logic works on the field
             if start_field:
@@ -286,7 +337,7 @@ try:
 
         if start_field:
             if changedState:
-                headTilt = min_head_tilt
+                # headTilt = min_head_tilt
                 servo.setTarget(HEADTILT, headTilt)
                 # talk
                 speaking = ['Crossed into starting field']
@@ -319,6 +370,7 @@ try:
                 print('this else is silly')
 
         elif mining:
+
             if changedState:
                 sawHuman = False
                 # talk
@@ -333,13 +385,20 @@ try:
                     # talk to human
                     # get the rock
                     pass
-                elif not sawHuman:
-                    # scan for human
-                    pass
 
             elif not hasBall:
             # scan for the human
-                pass
+                if not sawHuman:
+                    # if searching hasn't started, start
+                    if not searching:
+                        stop()
+                        searching = True
+                        headTilt = 6000
+                        servo.setTarget(HEADTILT, headTilt)
+                        threading.Timer(move_wait_time, search).start()
+                elif sawHuman:
+                    # get the ball
+                    pass
 
         else:
             print('Error: not a valid state!')
@@ -351,18 +410,22 @@ try:
         # if the `q` key was pressed, break from the loop
         if key == ord("q"):
             stop()
+            END_PROGRAM = True
             break
         if key == ord('p'):
             stop()
 
 except KeyboardInterrupt:
     print('Manually stopped')
+    END_PROGRAM = True
     stop()
 
 except Exception as e: # catch *all* exceptions
     stop()
+    END_PROGRAM = True
     print(traceback.print_tb(e.__traceback__))
     print('Stopped motors due to an error')
 except:
     print('Something didn"t catch....')
+    END_PROGRAM = True
     stop()
