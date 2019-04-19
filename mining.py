@@ -124,10 +124,214 @@ def print_bool_vals():
         output += '\t' + key + ': ' + bool_vals[key]
 
 
-def search_for_face(raw_img):
-    # TODO: COpy code from greet_human mostly here
-
+def chase_human(image):
+    # move twoards the human, keeping face
     pass
+
+def search_for_face(image, faces):
+    # TODO: if found a human, set sawHuman to true
+        image = image[0:height, int(height/8):int(7*width/8)] # int(width*.25):int(width*.75)]
+        faces = faces_found(image)
+        # found human and sees no face
+        if stopped and len(faces) == 0:
+            # needs to wait seven seconds before searching again
+            print('Lost the face, now I will wait 7 seconds...')
+            time.sleep(7)
+            stopped = False
+            sawHuman = False
+            repositioning = False
+            gotoHuman = False
+        # TODO: What happens with stop down here?
+        elif gotoHuman:
+            print("Chase the human!!!!")
+            # The face has been lost too long, stop before people die
+            if face_timer > 3 and not stopped:
+                print('Was chacing, but lost face for too long. Stop!')
+                print('*************DONE!*********************')
+                stop()
+                sawHuman = False
+                gotoHuman = False
+                repositioning = False
+                searching = False
+                stopped = True
+            elif len(faces) > 0:
+                face = faces[0]
+                print('Face {} of screen'.format(str(face[2]/width*100)))
+                # stop if width face is too much
+                if stopped:
+                    if face_timer > 7:
+                        sawHuman = False
+                        gotoHuman = False
+                        repositioning = False
+                        searching = False
+                        stopped = False
+                elif face[2]/width > .17:
+                    print('Was chasing, but got a big face so stop!')
+                    stop()
+                    print('*************DONE!*********************')
+                    stopped = True
+                else:
+                    go_forward()
+            elif stopped:
+                if face_timer > 7:
+                    sawHuman= False
+                    gotoHuman = False
+                    repositioning = False
+                    searching = True
+                    stopped = False
+
+            else:
+                go_forward()
+
+        elif repositioning:
+            print("repositioning...")
+            sawHuman = True
+            reposition(turn_dir, head_pos, frame)
+            # stop if face is too close
+            if len(faces) > 0:
+                face_timer = 0
+                print('found a face!')
+                face_center = faces[0][0] + 0.5*faces[0][2]
+                if abs(face_center - width/2) < width/5:
+                    print('Face in center, stoping things')
+                    turn = 6000
+                    servo.setTarget(TURN, turn)
+                    repositioning = False
+                    gotoHuman = True
+            """
+            elif reposition_timer > 6:
+                print('Took to long to locate human, searching again!')
+                stop()
+                repositioning = False
+                sawHuman = False
+                searching = False
+                gotoHuman = False
+            """
+
+        # elif len(faces) > 0 and not gotoHuman:
+
+        # the first time the face found
+        elif len(faces) > 0 and not sawHuman:
+            print('greet the human!!!!')
+            repositioning = True
+            # reposition_timer = 0
+            # threading.Timer(1, time_reposition).start()
+            sawHuman = True
+            threading.Timer(0, talk).start()
+            head_pos = servo.getPosition(HEADTURN)
+            face_loc = faces[0][0] + faces[0][2]/2
+            # if (head_pos < 6000 and face_loc < width/2) or (head_pos > 6000 and face_loc < width/2):
+            if head_pos > 6000:
+                print("Turn dir = right")
+                turn_dir = "right"
+            # elif (head_pos > 6000 and face_loc > width/2) or (head_pos < 6000 and face_loc > width/2):
+            if head_pos < 5000:
+                print("Turn dir = left")
+                turn_dir = 'left'
+            headTilt, headTurn = 6000, 6000
+            servo.setTarget(HEADTURN, headTurn)
+            servo.setTarget(HEADTILT, headTilt)
+            reposition(turn_dir, head_pos, frame)
+            face_timer = 0
+            # cv.imwrite('frame' + str(frame_itter) + '.png', image)
+
+        # The face has been found before
+        elif len(faces) > 0:
+            sawHuman = True
+            face_timer = 0
+            print('found a face!')
+        # elif len(faces) > 0 and not gotoHuman:
+            # elif sawHuman and not gotoHuman:
+
+            # print('should be in location to chase the human down!!!!')
+            # reposition(turn_dir, head_pos, frame)
+            # check if face in correct location on screen?
+            # if yes, chase human true and repositioning false?
+            # x y w h
+
+        # lost the face, but still not for long enough
+        # elif face_timer < max_time:
+        #    sawHuman = True
+
+        # The timer is up!
+        # No longer chacing human from here down
+
+        # Searching when no face is found, not chacing or repositioning or
+        # not already searching
+        elif not sawHuman and not repositioning and not gotoHuman and not searching:
+            searching = True
+            threading.Timer(move_wait_time, search).start()
+
+        elif sawHuman:
+            # The time has run out and there are no faces
+            sawHuman = False
+            # assume the robot is chacing the human or doing something, stop it
+            stop()
+            gotoHuman = False
+            # threading.Timer(move_wait_time, search).start()
+        else:
+            # do nothing here, keeps going as normal, no face
+            # ..........
+            sawHuman = False
+            gotoHuman = False
+            # threading.Timer(move_wait_time, search).start()
+
+        # TODO: Does this go in the big conditional or will it work out here?
+        # I'm trying it here, because I'm lazy
+        if sawHuman:
+            searching = False
+        # draw rectangle around the face
+        for (x,y,w,h) in faces:
+            cv.rectangle(image,(x,y),(x+w,y+h),(255,0,0),2)
+
+
+
+def reposition(turn_dir, head_pos, frame):
+    global turn
+    if turn_dir == 'left':
+        print('\treposition to the left')
+        # turn -= 200
+        turn = min_turn
+        if turn < min_turn:
+            turn = min_turn
+    elif turn_dir == 'right':
+        print('\treposition to the right')
+        # turn += 200
+        turn = max_turn
+        if turn > max_turn:
+            turn = max_turn
+    else:
+        print('Going streight')
+        # print('\tYa, something broke....')
+    servo.setTarget(TURN, turn)
+    time.sleep(0.25)
+    # print('\trepositioning turn value: ' + str(servo.getPosition(TURN)))
+    turn = 6000
+    servo.setTarget(TURN, turn)
+    time.sleep(.5)
+
+def faces_found(frame):
+    gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, 1.1, minSize=(10,10), maxSize=(width, height))
+    servo.setTarget(TURN, turn)
+    real_faces = []
+    # if len(faces) > 0:
+        # print('Faces total found: {}'.format(len(faces)))
+    for (x,y,w,h) in faces:
+        roi_gray = gray[y:y+h, x:x+w]
+        # don't worry about eyes if chacing human, need to get it!
+        eyes = eye_cascade.detectMultiScale(roi_gray)
+        # If there are no eyes1111, don't use this face
+        if len(eyes) == 0:
+            continue
+        #Otherwise, we use it and return it to our list of return faces
+        # print('total eye count: {}'.format(len(eyes)))
+        real_faces.append((x,y,w,h))
+        # cv.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2)
+    if len(real_faces) > 0:
+        print('\tfaces_found has a face!')
+    return real_faces
+
 
 def stop():
     print('in stop: stopping motors')
@@ -292,6 +496,8 @@ sawHuman = False
 getBall = False
 searching = False
 increasing = False
+repositioning = False
+gotoHuman = False
 move_wait_time = 1.0  # time to wait before moving to new position head
 
 # other
@@ -380,14 +586,12 @@ try:
                 changedState = False
 
             if hasBall:
-                # scan for the human
-                if sawHuman:
-                    # talk to human
-                    # get the rock
-                    pass
+                pass
 
             elif not hasBall:
-            # scan for the human
+                # almost whole area needs access to faces array
+                faces = faces_found(image)
+
                 if not sawHuman:
                     # if searching hasn't started, start
                     if not searching:
@@ -396,9 +600,44 @@ try:
                         headTilt = 6000
                         servo.setTarget(HEADTILT, headTilt)
                         threading.Timer(move_wait_time, search).start()
+                    elif searching:
+                        search_for_face(image, faces)
+
                 elif sawHuman:
-                    # get the ball
-                    pass
+                    # get the ballpo
+                    # bools here, gotoHuman, repositioning
+                    # Stop searching if found the humna
+
+                    if searching:
+                        # saw human, stop searching, start repositioning
+                        print('sawHuman, searching')
+                        searching = False
+                        repositioning = True
+                        headTurn = 6000
+                        servo.setTarget(headTurn, HEADTURN)
+
+                    if len(faces) > 0:
+                        if repositioning:
+                            print('>0, sawHuman, repositioning')
+                            # move until finds the human
+                            reposition(turn_dir, image)
+
+                        elif gotoHuman:
+                            print('>0, sawHuman, gotoHuman')
+                            # move to the human
+                    else:  # doesn't see a face on screen
+                        if repositioning:
+                            reposition(turn_dir, image)
+                            print("Hopefully I don't go in a circle")
+                        elif gotoHuman:
+                            # check the timer
+                            pass
+
+                    if getBall:
+                        print('sawHuman, getBall')
+
+
+                    chase_human(image)
 
         else:
             print('Error: not a valid state!')
