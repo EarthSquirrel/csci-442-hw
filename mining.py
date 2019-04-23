@@ -604,7 +604,7 @@ try:
                         search_for_face(image, faces)
 
                 elif sawHuman:
-                    # get the ballpo
+                    # get the ball
                     # bools here, gotoHuman, repositioning
                     # Stop searching if found the humna
 
