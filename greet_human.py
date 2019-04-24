@@ -94,11 +94,11 @@ def time_reposition():
         threading.Timer(1,time_reposition).start()
 
 def search():
-    global increasing, headTurn, headTilt, tilt_loc, searching
+    headTurn, headTilt, tilt_loc, searching
+    increasing = False
     if END_PROGRAM:
         stop()
         return
-    print('\t\tsearching.....')
     if increasing:
         headTurn += 200
         if headTurn > max_head_turn:

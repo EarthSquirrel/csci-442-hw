@@ -5,7 +5,7 @@ cv.namedWindow("original", cv.WINDOW_NORMAL)
 cv.namedWindow("hsv", cv.WINDOW_NORMAL)
 cv.namedWindow("filter", cv.WINDOW_NORMAL)
 
-img = cv.imread('drop-image.png')# 'hand-imag2e.png')
+img = cv.imread('hand2.png')# 'hand-imag2e.png')
 hsv_img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
 
 
