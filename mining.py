@@ -29,24 +29,30 @@ eye_cascade = cv.CascadeClassifier('haarcascade_eye.xml')
 ##############################################################################
 
 
-def check_crossed(raw_img):
-    global old_cog_line
-    raw_img = raw_img[int(height/3):height, int(width/5):int(4*width/5)] # int(width*.25):int(width*.75)]
-    blur = cv.blur(raw_img,(7,7))
+def get_hsv_filter(raw_img, hsv_min, hsv_max):
+    blur = cv.blur(raw_img,(5,5))
     # cv.imshow('raw_img', raw_img)
     kernel = np.ones((10,10), np.uint8)
 
     img_erosion = cv.erode(blur, kernel, iterations=2)
-    img_dilation = cv.dilate(img_erosion, kernel, iterations=1)
-    img_dilation = cv.dilate(img_dilation, kernel, iterations=3)
+    img_dilation = cv.dilate(img_erosion, kernel, iterations=2)
 
     # color filtering stuff, save for later
     hsv = cv.cvtColor(img_dilation, cv.COLOR_BGR2HSV)
 
     # robot lab settings
-    hsv_min, hsv_max = (0, 40, 90), (75, 250, 255)
     color_filter = cv.inRange(hsv, hsv_min, hsv_max)
+    return color_filter
 
+
+def check_crossed(raw_img):
+    global old_cog_line
+    raw_img = raw_img[int(height/3):height, int(width/5):int(4*width/5)] # int(width*.25):int(width*.75)]
+
+    # yellow
+    hsv_min, hsv_max = (0, 40, 90), (75, 250, 255)
+
+    color_filter = get_hsv_filter(raw_img, hsv_min, hsv_max)
     # cv.imshow('hsv',color_filter) # hsv)
 
     edges = cv.Canny(color_filter, 35, 150, L2gradient=True)
@@ -88,17 +94,7 @@ def check_crossed(raw_img):
     cog = (cx, cy)
     cv.rectangle(thresh, (cx,cy), (cx+29, cy+20),(0,0,255), 2)
     cv.imshow('contours', thresh)
-    """
-    if old_cog_line[1] > cog[1]:
-        # moving forward towards line
-        print('True old: {} new: {}'.format(old_cog_line, cog))
-        old_cog_line = cog
-        return True
-    else:
-        print('False: old {} new {}'.format(old_cog_line, cog))
-        old_cog_line = cog
-        return False
-    """
+
     if old_cog_line[1]> 0 and cog[1] == -1:
         # moving forward towards line
         # print('True old: {} new: {}'.format(old_cog_line, cog))
@@ -109,7 +105,6 @@ def check_crossed(raw_img):
         # print('False: old {} new {}'.format(old_cog_line, cog))
         old_cog_line = cog
         return False
-    return hsv
 
 
 def myContourArea(cnt):
@@ -430,8 +425,9 @@ try:
                 # shoot me please
                 pass
             elif mining:
-                mining = False
-                avoidance = True
+                #mining = False
+                #avoidance = True
+                pass
             else:
                 print('not in any state, there"s a problem!')
 
@@ -609,6 +605,57 @@ try:
                 cv.imshow("faces", image)
 
 
+                """
+                # almost whole area needs access to faces array
+                faces = faces_found(image)
+
+                if not sawHuman:
+                    # if searching hasn't started, start
+                    if not searching:
+                        stop()
+                        searching = True
+                        headTilt = 6000
+                        servo.setTarget(HEADTILT, headTilt)
+                        threading.Timer(move_wait_time, search).start()
+                    elif searching:
+                        search_for_face(image, faces)
+
+                elif sawHuman:
+                    # get the ball
+                    # bools here, gotoHuman, repositioning
+                    # Stop searching if found the humna
+
+                    if searching:
+                        # saw human, stop searching, start repositioning
+                        print('sawHuman, searching')
+                        searching = False
+                        repositioning = True
+                        headTurn = 6000
+                        servo.setTarget(headTurn, HEADTURN)
+
+                    if len(faces) > 0:
+                        if repositioning:
+                            print('>0, sawHuman, repositioning')
+                            # move until finds the human
+                            reposition(turn_dir, image)
+
+                        elif gotoHuman:
+                            print('>0, sawHuman, gotoHuman')
+                            # move to the human
+                    else:  # doesn't see a face on screen
+                        if repositioning:
+                            reposition(turn_dir, image)
+                            print("Hopefully I don't go in a circle")
+                        elif gotoHuman:
+                            # check the timer
+                            pass
+
+                    if getBall:
+                        print('sawHuman, getBall')
+
+
+                    chase_human(image)
+        """
         else:
             print('Error: not a valid state!')
         key = cv.waitKey(1) & 0xFF

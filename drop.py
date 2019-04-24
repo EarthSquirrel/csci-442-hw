@@ -15,14 +15,19 @@ HEADTILT = 4
 HEADTURN = 3
 ARM = 6
 HAND = 11
+ELBOW = 6
+TWIST = 7
 
-open_hand = 50
-closed_hand = -50
-raised_arm = -50
-lower_arm = 50
+open_hand = 4000
+closed_hand = 7400
+raised_arm = 8000
+lower_arm = 4000
+elbow_straight = 6000
+twist_in = 5000
 
 servo.setTarget(ARM, raised_arm)
 servo.setTarget(HAND, open_hand)
+servo.setTarget(TWIST, twist_in)
 servo.setTarget(HEADTILT,1510)
 
 camera = PiCamera()
@@ -34,22 +39,31 @@ def myContourArea(cnt):
    x,y,w,h = cv.boundingRect(cnt)
    return w*h
 
-
-def detect_ice(raw_img):
-    raw_img = raw_img[int(height/2):height, 0:width] # int(width*.25):int(width*.75)]
-    blur = cv.blur(raw_img,(3,3))
+def get_hsv_filter(raw_img, hsv_min, hsv_max):
+    blur = cv.blur(raw_img,(5,5))
     # cv.imshow('raw_img', raw_img)
     kernel = np.ones((10,10), np.uint8)
 
     img_erosion = cv.erode(blur, kernel, iterations=2)
-    img_dilation = cv.dilate(img_erosion, kernel, iterations=1)
+    img_dilation = cv.dilate(img_erosion, kernel, iterations=2)
 
     # color filtering stuff, save for later
     hsv = cv.cvtColor(img_dilation, cv.COLOR_BGR2HSV)
-    cv.imshow("hsv", hsv)
+
     # robot lab settings
-    hsv_min, hsv_max = (0, 0, 0), (70, 70, 90)
     color_filter = cv.inRange(hsv, hsv_min, hsv_max)
+    return color_filter
+
+def detect_ice(raw_img):
+    width, height, channel = raw_img.shape
+    width_array = len(raw_img[0])
+    raw_img = raw_img[0:height,int(width_array/2):width_array]#int(width/3):width] # int(width*.25):int(width*.75)]
+
+    # yellow_min = np.array([100, 0, 150])
+    # yellow_max = np.array([135, 15, 255])
+
+    hsv_min, hsv_max = (50,0,150), (135,50,255)
+    color_filter = get_hsv_filter(raw_img, hsv_min, hsv_max)
     cv.imshow("filter", color_filter)
 
     # cv.imshow('hsv',color_filter) # hsv)
@@ -69,32 +83,38 @@ def detect_ice(raw_img):
     contoursS = sorted(contours, key=lambda x: myContourArea(x))
     contoursS.reverse()
 
-    if len(contoursS) == 0:
-        paused = True
 
-    cx, cy = -1, -1
-
+    cx, cy = width*100, height*100
+    if len(contoursS) > 0:
+        center_contour = (10000000, contoursS[0], (cx, cy))
+    width, height, channel = raw_img.shape
     for cnt in contoursS:
         x,y,w,h = cv.boundingRect(cnt)
         cv.rectangle(thresh, (x,y), (x+w,y+h,), (0,255,0), 2)
-        if width*height < 10:
-            print('area is {} too small. No contours found.'.format(x*y))
-            paused = True
-        M = cv.moments(cnt)
-        if M['m00'] == 0:
-            div_by =0.1
-        else:
-            div_by = M['m00']
+        if w*h > 500:
+            # print('area is {} too small. No contours found.'.format(x*y))
 
-        cx = int(M['m10']/div_by)
-        cy = int(M['m01']/div_by)
-        break
+            M = cv.moments(cnt)
+            if M['m00'] == 0:
+                div_by =0.1
+            else:
+                div_by = M['m00']
 
-    cog = (cx, cy)
-    cv.rectangle(thresh, (cx,cy), (cx+29, cy+20),(0,0,255), 2)
+            cx = int(M['m10']/div_by)
+            cy = int(M['m01']/div_by)
+
+            cog = (cx, cy)
+            temp_dist =np.linalg.norm(np.array(cog) - np.array((width/2, height/2)))
+            if temp_dist < center_contour[0]:
+                center_contour = (temp_dist, cnt, cog)
+
+            cv.rectangle(thresh, (cx,cy), (cx+29, cy+20),(0,0,255), 2)
+    if len(contoursS) > 0:
+        cv.rectangle(thresh, center_contour[2], (cx+29, cy+20),(0,255,255), 2)
+    cv.rectangle(thresh, (int(width/2), int(height/2)), (cx+29, cy+20),(0,255,255), 2)
+
     cv.imshow('contours', thresh)
 
-    return hsv
 
 
 
@@ -106,6 +126,7 @@ time.sleep(0.1)
 for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
     # grab the raw NumPy array representing the image, then initialize the timestamp
     # and occupied/unoccupied text
+
     image = frame.array
     width, height, channel = image.shape
 
@@ -125,4 +146,5 @@ for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=
     # if the `q` key was pressed, break from the loop
     if key == ord("q"):
             break
-
+    if key == ord('c'):
+        cv.imwrite('drop-image.png', image)
