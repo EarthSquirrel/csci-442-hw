@@ -17,7 +17,6 @@ hsv_img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
 yellow_min = np.array([20, 110, 235])
 yellow_max = np.array([23, 130, 245])
 
-<<<<<<< HEAD
 white_min = np.array([100, 5, 230])
 white_max = np.array([130, 20, 255])
 
@@ -25,17 +24,10 @@ pink_min = np.array([164, 65, 252])
 pink_max = np.array([166, 75, 255])
 
 hsv_filter = cv.inRange(hsv_img, pink_min, pink_max)
-=======
+
 # worked on hand-imag2e.png
 # yellow_min = np.array([100, 0, 150])
 # yellow_max = np.array([135, 15, 255])
-
-
-yellow_min = np.array([100, 0, 150])
-yellow_max = np.array([135, 15, 255])
-
-hsv_filter = cv.inRange(hsv_img, yellow_min, yellow_max)
->>>>>>> 0df7eee13024644f1d0b9f07967b363d1a79b563
 
 
 def get_hsv_val(event, x, y, flags, param):
