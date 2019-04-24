@@ -44,6 +44,12 @@ def get_hsv_filter(raw_img, hsv_min, hsv_max):
     color_filter = cv.inRange(hsv, hsv_min, hsv_max)
     return color_filter
 
+def get_contours(edges):
+    contours, hierarchy = cv.findContours(edges, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
+    cntsSorted = sorted(contours, key=lambda x: cv.contourArea(x))
+    contoursS = sorted(contours, key=lambda x: myContourArea(x))
+    contoursS.reverse()
+    return contoursS
 
 def check_crossed(raw_img):
     global old_cog_line
@@ -60,15 +66,9 @@ def check_crossed(raw_img):
     dil_edges = cv.dilate(edges, kernel, iterations=1)
     # cv.imshow('edges', dil_edges)
 
-    contours, hierarchy = cv.findContours(dil_edges, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
-    width_i, height_i, channel_i = raw_img.shape
-    tours = 255 * np.ones((width_i,height_i,1), np.uint8)
     thresh = raw_img.copy()
 
-    cntsSorted = sorted(contours, key=lambda x: cv.contourArea(x))
-
-    contoursS = sorted(contours, key=lambda x: myContourArea(x))
-    contoursS.reverse()
+    contoursS = get_contours(dil_edges)
 
     if len(contoursS) == 0:
         paused = True
