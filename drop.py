@@ -57,6 +57,14 @@ def get_hsv_filter(raw_img, hsv_min, hsv_max):
     color_filter = cv.inRange(hsv, hsv_min, hsv_max)
     return color_filter
 
+counting_ice_cnts = False
+counting_ice_cnts_timer = 0
+
+def cnts_ice_timer():
+    counting_ice_cnts_timer += 1
+    if counting_ice_cnts:
+        threading.Timer(cnts_ice_timer, 1)
+
 def get_contours(edges):
     contours, hierarchy = cv.findContours(edges, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
     cntsSorted = sorted(contours, key=lambda x: cv.contourArea(x))
@@ -88,37 +96,6 @@ def detect_ice(raw_img):
     thresh = raw_img.copy()
 
 
-    contoursS = get_contours(dil_edges)
-
-    cx, cy = width*100, height*100
-    if len(contoursS) > 0:
-        center_contour = (10000000, contoursS[0], (cx, cy))
-    width, height, channel = raw_img.shape
-    for cnt in contoursS:
-        x,y,w,h = cv.boundingRect(cnt)
-        cv.rectangle(thresh, (x,y), (x+w,y+h,), (0,255,0), 2)
-        if w*h > 100:
-            # print('area is {} too small. No contours found.'.format(x*y))
-
-            M = cv.moments(cnt)
-            if M['m00'] == 0:
-                div_by =0.1
-            else:
-                div_by = M['m00']
-
-            cx = int(M['m10']/div_by)
-            cy = int(M['m01']/div_by)
-
-            cog = (cx, cy)
-            temp_dist =np.linalg.norm(np.array(cog) - np.array((width/2, height/2)))
-            if temp_dist < center_contour[0]:
-                center_contour = (temp_dist, cnt, cog)
-
-            cv.rectangle(thresh, (cx,cy), (cx+29, cy+20),(0,0,255), 2)
-    if len(contoursS) > 0:
-        cv.rectangle(thresh, center_contour[2], (cx+29, cy+20),(0,255,255), 2)
-
-    # cv.rectangle(thresh, (int(width/2), int(height/2)), (30, 30),(255,255,255), 2)
 
     hsv_min, hsv_max = (25, 0, 240), (35, 170, 255)
     ice_filter = get_hsv_filter(raw_img, hsv_min, hsv_max)
@@ -129,11 +106,16 @@ def detect_ice(raw_img):
     edges = cv.Canny(ice_filter, 35, 150, L2gradient=True)
     kernel = np.ones((10,10), np.uint8)
     dil_edges = cv.dilate(edges, kernel, iterations=1)
-    contoursS = get_contours(dil_edges)
+    ice_cnts = get_contours(dil_edges)
+
+    if len(ice_cnts) > 0 and counting_ice_cnts:
+        if counting_ice_cnts_timer > 3:
+            pass
+    elif len(ice_cnts) > 0:
+        counting_ice_cnts = True
+
 
     cx, cy = width*100, height*100
-    if len(contoursS) > 0:
-        center_contour = (10000000, contoursS[0], (cx, cy))
     width, height, channel = raw_img.shape
     for cnt in contoursS:
         x,y,w,h = cv.boundingRect(cnt)
@@ -157,7 +139,6 @@ def detect_ice(raw_img):
 
             cv.rectangle(thresh, (cx,cy), (cx+29, cy+20),(255,255,255), 2)
 
-    cv.imshow('contours', thresh)
 
 
 
