@@ -2,6 +2,7 @@
 from picamera.array import PiRGBArray
 from picamera import PiCamera
 import time
+import datetime as dt
 import cv2 as cv
 import maestro
 import sys
@@ -28,25 +29,30 @@ eye_cascade = cv.CascadeClassifier('haarcascade_eye.xml')
 ##############################################################################
 
 
-def check_crossed(raw_img):
-    global old_cog_line
-    # TODO: Check if robot crossed a line into a new state
-    raw_img = raw_img[0:int(height/3), int(width/4):int(2*width/4)] # int(width*.25):int(width*.75)]
-    blur = cv.blur(raw_img,(7,7))
+def get_hsv_filter(raw_img, hsv_min, hsv_max):
+    blur = cv.blur(raw_img,(5,5))
     # cv.imshow('raw_img', raw_img)
     kernel = np.ones((10,10), np.uint8)
 
     img_erosion = cv.erode(blur, kernel, iterations=2)
-    img_dilation = cv.dilate(img_erosion, kernel, iterations=1)
-    img_dilation = cv.dilate(img_dilation, kernel, iterations=3)
+    img_dilation = cv.dilate(img_erosion, kernel, iterations=2)
 
     # color filtering stuff, save for later
     hsv = cv.cvtColor(img_dilation, cv.COLOR_BGR2HSV)
 
     # robot lab settings
-    hsv_min, hsv_max = (0, 40, 90), (75, 250, 255)
     color_filter = cv.inRange(hsv, hsv_min, hsv_max)
+    return color_filter
 
+
+def check_crossed(raw_img):
+    global old_cog_line
+    raw_img = raw_img[int(height/3):height, int(width/5):int(4*width/5)] # int(width*.25):int(width*.75)]
+
+    # yellow
+    hsv_min, hsv_max = (0, 40, 90), (75, 250, 255)
+
+    color_filter = get_hsv_filter(raw_img, hsv_min, hsv_max)
     # cv.imshow('hsv',color_filter) # hsv)
 
     edges = cv.Canny(color_filter, 35, 150, L2gradient=True)
@@ -88,17 +94,7 @@ def check_crossed(raw_img):
     cog = (cx, cy)
     cv.rectangle(thresh, (cx,cy), (cx+29, cy+20),(0,0,255), 2)
     cv.imshow('contours', thresh)
-    """
-    if old_cog_line[1] > cog[1]:
-        # moving forward towards line
-        print('True old: {} new: {}'.format(old_cog_line, cog))
-        old_cog_line = cog
-        return True
-    else:
-        print('False: old {} new {}'.format(old_cog_line, cog))
-        old_cog_line = cog
-        return False
-    """
+
     if old_cog_line[1]> 0 and cog[1] == -1:
         # moving forward towards line
         # print('True old: {} new: {}'.format(old_cog_line, cog))
@@ -109,7 +105,7 @@ def check_crossed(raw_img):
         # print('False: old {} new {}'.format(old_cog_line, cog))
         old_cog_line = cog
         return False
-    return hsv
+
 
 def myContourArea(cnt):
    x,y,w,h = cv.boundingRect(cnt)
@@ -129,120 +125,6 @@ def chase_human(image):
     pass
 
 
-"""
-def search_for_face(image, faces):
-    # TODO: if found a human, set sawHuman to true
-        image = image[0:height, int(height/8):int(7*width/8)] # int(width*.25):int(width*.75)]
-        faces = faces_found(image)
-        # found human and sees no face
-        if stopped and len(faces) == 0:
-            # needs to wait seven seconds before searching again
-            print('Lost the face, now I will wait 7 seconds...')
-            time.sleep(7)
-            stopped = False
-            sawHuman = False
-            repositioning = False
-            gotoHuman = False
-        # TODO: What happens with stop down here?
-        elif gotoHuman:
-            print("Chase the human!!!!")
-            # The face has been lost too long, stop before people die
-            if face_timer > 3 and not stopped:
-                print('Was chacing, but lost face for too long. Stop!')
-                print('*************DONE!*********************')
-                stop()
-                sawHuman = False
-                gotoHuman = False
-                repositioning = False
-                searching = False
-                stopped = True
-            elif len(faces) > 0:
-                face = faces[0]
-                print('Face {} of screen'.format(str(face[2]/width*100)))
-                # stop if width face is too much
-                if stopped:
-                    if face_timer > 7:
-                        sawHuman = False
-                        gotoHuman = False
-                        repositioning = False
-                        searching = False
-                        stopped = False
-                elif face[2]/width > .17:
-                    print('Was chasing, but got a big face so stop!')
-                    stop()
-                    print('*************DONE!*********************')
-                    stopped = True
-                else:
-                    go_straight()
-            elif stopped:
-                if face_timer > 7:
-                    sawHuman= False
-                    gotoHuman = False
-                    repositioning = False
-                    searching = True
-                    stopped = False
-
-            else:
-                go_straight()
-
-        elif repositioning:
-            print("repositioning...")
-            sawHuman = True
-            reposition(turn_dir)
-            # stop if face is too close
-            if len(faces) > 0:
-                face_timer = 0
-                print('found a face!')
-                stop_face_size(width, faces)
-
-        # the first time the face found
-        elif len(faces) > 0 and not sawHuman:
-            print('greet the human!!!!')
-            repositioning = True
-            # reposition_timer = 0
-            # threading.Timer(1, time_reposition).start()
-            sawHuman = True
-            threading.Timer(0, talk).start()
-            turn_dir = get_turn_dir()
-            headTilt, headTurn = 6000, 6000
-            servo.setTarget(HEADTURN, headTurn)
-            servo.setTarget(HEADTILT, headTilt)
-            reposition(turn_dir)
-            face_timer = 0
-            # cv.imwrite('frame' + str(frame_itter) + '.png', image)
-
-        # The face has been found before
-        elif len(faces) > 0:
-            sawHuman = True
-            face_timer = 0
-            print('found a face!')
-
-        elif not sawHuman and not repositioning and not gotoHuman and not searching:
-            searching = True
-            threading.Timer(move_wait_time, search).start()
-
-        elif sawHuman:
-            # The time has run out and there are no faces
-            sawHuman = False
-            # assume the robot is chacing the human or doing something, stop it
-            stop()
-            gotoHuman = False
-            # threading.Timer(move_wait_time, search).start()
-        else:
-            # do nothing here, keeps going as normal, no face
-            # ..........
-            sawHuman = False
-            gotoHuman = False
-            # threading.Timer(move_wait_time, search).start()
-
-        # TODO: Does this go in the big conditional or will it work out here?
-        # I'm trying it here, because I'm lazy
-        if sawHuman:
-            searching = False
-        # draw rectangle around the face
-        for (x,y,w,h) in faces:
-            cv.rectangle(image,(x,y),(x+w,y+h),(255,0,0),2)
-"""
 def time_the_faces():
     if END_PROGRAM:
         return
@@ -337,6 +219,16 @@ def stop():
     servo.setTarget(HEADTILT, headTilt)
     servo.setTarget(BODY, body)
 
+def pause():
+    print('in stop: stopping motors')
+    global motors, turn, body, headTurn, headTilt
+    motors = 6000
+    turn = 6000
+    body = 6000
+
+    servo.setTarget(MOTORS, motors)
+    servo.setTarget(TURN, turn)
+    servo.setTarget(BODY, body)
 
 def go_straight():
     global motors, turn, max_move
@@ -432,8 +324,9 @@ TURN = 2
 BODY = 0
 HEADTILT = 4
 HEADTURN = 3
-LEFTARM = 5
-LEFTHAND = 10
+ARM = 6
+HAND = 11
+TWISTARM = 7
 
 motors = 6000
 turn = 6000
@@ -441,7 +334,7 @@ body = 6000
 headTurn = 6000
 headTilt = 6000
 
-
+move_arms = False
 max_move = 5400  # 5400
 max_turn = 7200  # left
 min_turn = 4800  # right
@@ -453,6 +346,8 @@ min_arm = 0
 max_arm = 200
 min_hand = -50
 max_hand = 50
+twistarm_inward = -150
+twistarm_normal = 150  # outward in this case!!! -_-
 
 
 # In the hall
@@ -475,6 +370,7 @@ changedState = False
 
 # global accross all states
 hasBall = False
+time_to_cross_line = 3
 
 # start_filed bools
 droppedBall = False
@@ -507,8 +403,8 @@ time.sleep(0.1)
 headTilt = 4000
 servo.setTarget(HEADTILT, headTilt)
 # go_straight()
-avoidance = True
-start_field = False
+#avoidance = True
+#start_field = False
 
 try:
 # capture frames from the camera
@@ -529,8 +425,9 @@ try:
                 # shoot me please
                 pass
             elif mining:
-                mining = False
-                avoidance = True
+                #mining = False
+                #avoidance = True
+                pass
             else:
                 print('not in any state, there"s a problem!')
 
@@ -577,10 +474,13 @@ try:
                 # talk(speaking)
                 print(speaking)
                 changedState = False
+                stop()
                 headTilt = 6000
                 servo.setTarget(HEADTILT, headTilt)
-                servo.setTarget(LEFTHAND, max_hand)
-                servo.setTarget(LEFTARM, max_arm)
+                if move_arms:
+                    servo.setTarget(HAND, max_hand)
+                    servo.setTarget(ARM, max_arm)
+                    servo.setTarget(TWISTARM, twistarm_inward)
 
             if hasBall:
                 pass
@@ -630,8 +530,8 @@ try:
                             go_straight()
                     elif stopped:
                         # TODO: Put code ot get ice here
-                        get_ice(image)
-
+                        # get_ice(image)
+                        pass
                         """
                         if face_timer > 7:
                             sawHuman= False
@@ -764,12 +664,14 @@ try:
         rawCapture.truncate(0)
 
         # if the `q` key was pressed, break from the loop
+        if key == ord("c"):
+            cv.imwrite('image.png', image)
         if key == ord("q"):
             stop()
             END_PROGRAM = True
             break
         if key == ord('p'):
-            stop()
+            pause()
 
 except KeyboardInterrupt:
     print('Manually stopped')
