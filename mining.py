@@ -74,18 +74,19 @@ def check_crossed(raw_img,  hsv_min, hsv_max, window_name='check crossed'):
         x,y,w,h = cv.boundingRect(cnt)
         cv.rectangle(thresh, (x,y), (x+w,y+h,), (0,255,0), 2)
         #print(w*h)
-        if w*h < 10:
-            print('area is {} too small. No contours found.'.format(x*y))
+        if w > width/4:
             paused = True
-        M = cv.moments(cnt)
-        if M['m00'] == 0:
-            div_by =0.1
-        else:
-            div_by = M['m00']
+            M = cv.moments(cnt)
+            if M['m00'] == 0:
+                div_by =0.1
+            else:
+                div_by = M['m00']
 
-        cx = int(M['m10']/div_by)
-        cy = int(M['m01']/div_by)
-        break
+            cx = int(M['m10']/div_by)
+            cy = int(M['m01']/div_by)
+            break
+        else:
+            print('area is {} too small for {}. No contours found.'.format(w, width/2))
 
     cog = (cx, cy)
     cv.rectangle(thresh, (cx,cy), (cx+29, cy+20),(0,0,255), 2)
@@ -129,6 +130,16 @@ def time_the_faces():
     print('\t\tface_timer: ', face_timer)
     if mining and not gettingIce:
         threading.Timer(1,time_the_faces).start()
+
+def load_images_clock():
+    global load_images_timer, load_images
+    load_images_timer += 1
+    # print('\t\tload_images_timer ', load_images_timer)
+    if load_images_timer < 6:
+        threading.Timer(1, load_images_clock).start()
+    else:
+        load_images = False
+        go_straight()
 
 def get_turn_dir():
     global turn_dir
@@ -217,7 +228,6 @@ def cnts_ice_timer():
     if counting_ice_cnts:
         threading.Timer(1,cnts_ice_timer).start()
 
-# TODO: Import new method
 def detect_ice(raw_img):
     global counting_ice_cnts, counting_ice_cnts_timer, hasBall, rejectedPink
     width, height, channel = raw_img.shape
@@ -242,7 +252,6 @@ def detect_ice(raw_img):
             print('GRAB THE ICE!!!')
             servo.setTarget(HAND, closed_hand)
             hasBall = True
-            #TODO: grab the ice
     elif len(ice_cnts) > 0 and not hasBall:
         speak = ['I will take that']
         print(speak)
@@ -354,6 +363,19 @@ def search():
        threading.Timer(move_wait_time, search).start()
     else: # no longer searching if found a face
         searching = False
+
+def search_turn():
+    turn = max_turn
+    servo.setTarget(TURN, turn)
+    time.sleep(.25)
+    turn = 6000
+    motors = 6000
+    servo.setTarget(MOTORS, motors)
+    servo.setTarget(TURN, turn)
+    time.sleep(.25)
+    if searchingTurn:
+        threading.Timer(.01, search_turn).start()
+
 
 # greater than 6000
 def turn_left(weight):
@@ -469,6 +491,8 @@ changedState = False
 
 # global accross all states
 hasBall = False
+load_images = True
+load_images_timer = 0
 
 # start_field bools
 droppedBall = False
@@ -491,6 +515,7 @@ counting_ice_cnts_timer = 0  # must see the ice for certian amount of tiime, thn
 rejectedPink = False
 askedForIce = False
 gettingIce = False
+searchingTurn = False
 
 #
 
@@ -507,10 +532,12 @@ time.sleep(0.1)
 
 # headTilt = 4000
 servo.setTarget(HEADTILT, headTilt)
+servo.setTarget(HEADTILT, 1510)
+threading.Timer(1, load_images_clock).start()
 # go_straight()
 # avoidance = True
-start_field = False
-mining = True
+#start_field = False
+#mining = True
 
 try:
 # capture frames from the camera
@@ -520,9 +547,11 @@ try:
         # yellow
         yellow_min, yellow_max = (0, 40, 90), (75, 250, 255)
         yellow_min, yellow_max = (10, 100, 240), (30, 120, 255)
-        """
+        # on teh test paper
+        yellow_min, yellow_max = (10, 180, 130), (30, 200, 150)
+
         # Change the state if crossed a line
-        if not searching and check_crossed(image, yellow_min, yellow_max, 'yellow line'):
+        if not searching and check_crossed(image, yellow_min, yellow_max, 'yellow line') and not load_images:
             print('crossed a yellow line')
             changedState = True
             if start_field:
@@ -537,8 +566,10 @@ try:
 
         pink_min, pink_max = (164, 65, 252), (166, 75, 255)
         pink_min, pink_max = (155, 30, 250), (166, 40, 255)
+        # ON the papers
+        #pink_min, pink_max = (155, 135, 170), (172, 150, 185)
 
-        if not searching and check_crossed(image, pink_min, pink_max, 'pink line'):
+        if not searching and check_crossed(image, pink_min, pink_max, 'pink line') and not load_images:
             print('Crossed a pink line')
             changedState = True
             if avoidance:
@@ -552,13 +583,13 @@ try:
 
             print('Start {}, avoid {} mine {}'.format(start_field, avoidance, mining))
 
-        """
+
         if start_field:
+            servo.setTarget(HEADTILT, 1510)
             if changedState:
                 # headTilt = min_head_tilt
-                servo.setTarget(HEADTILT, headTilt)
                 # talk
-                speaking = ['Crossed into starting field']
+                speaking = ['Crossed into starting field', 'boing boing']
                 if talking:
                     talk(speaking)
                 print(speaking)
@@ -574,7 +605,7 @@ try:
         elif avoidance:
             if changedState:
                 # talk
-                speaking = ['Crossed into avoidance']
+                speaking = ["Vroom vroom. Let's run stuff over!"]
                 if talking:
                     talk(speaking)
                 print(speaking)
@@ -594,7 +625,7 @@ try:
             if changedState:
                 sawHuman = False
                 # talk
-                speaking = ['Crossed into mining']
+                speaking = ['Time to collect some ice']
                 if talking:
                     talk(speaking)
                 print(speaking)
@@ -604,7 +635,13 @@ try:
                 servo.setTarget(HEADTILT, headTilt)
 
             if hasBall:
-                # print('The robot now has the ice!')
+                # TODO: Start turning in small incriments and look for the
+                # green box
+                if not searchingTurn:
+                    servo.setTarget(HEADTILT, 6000)
+                    # search_turn()
+                    searchingTurn = True
+                    print('starting to spin and search for green')
                 pass
 
             elif not hasBall:
@@ -645,6 +682,7 @@ try:
                         searching = False
                         stopped = True
                     elif len(faces) > 0:
+                        face_timer = 0
                         face = faces[0]
                         print('Face {} of screen'.format(str(face[2]/width*100)))
                         # stop if width face is too much
@@ -654,7 +692,7 @@ try:
                             gotoHuman = False
                             repositioning = False
                             searching = False
-                        elif face[2]/width > .17:
+                        elif face[2]/width > .30:
                             print('Was chasing, but got a big face so stop!')
                             stop()
                             # print('*************DONE!*********************')
