@@ -16,6 +16,9 @@ camera.framerate = 10
 rawCapture = PiRGBArray(camera, size=(640,480))
 servo = maestro.Controller()
 
+END_PROGRAM = False # use this to kill the threads
+increasing = False
+
 MOTORS = 1
 TURN = 2
 BODY = 0
@@ -25,6 +28,7 @@ ARM = 6
 HAND = 11
 TWISTARM = 7
 
+servo.setTarget(HEADTILT, 5000)
 
 max_move = 5200  # 5400
 max_turn = 7200  # left
@@ -32,6 +36,13 @@ min_turn = 4800  # right
 max_head_turn = 7500 # max 7900
 min_head_turn = 4000 # min 1510
 max_time = 5
+
+motors = 6000
+turn = 6000
+body = 6000
+headTurn = 6000
+headTilt = 6000
+
 
 yellow_min = np.array([20, 110, 235])
 yellow_max = np.array([23, 130, 245])
@@ -42,7 +53,9 @@ white_max = np.array([130, 20, 255])
 yellow_ice_min = np.array([30, 135, 200])
 yellow_ice_max = np.array([35, 170, 220])
 
-green_ice_min = np.array([30, 180, 140])
+#green_ice_min = np.array([30, 180, 140])
+#green_ice_max = np.array([75, 225, 190])
+green_ice_min = np.array([20, 160, 120])
 green_ice_max = np.array([75, 225, 190])
 
 
@@ -90,19 +103,44 @@ def search():
         if headTurn < min_head_turn:
             headTurn = min_head_turn
             increasing = True
-            tilt_loc += 1
-            if tilt_loc > 2:
                 # maxed out array, return to o
-                tilt_loc= 0
-            headTilt = tilt_positions[tilt_loc]
     # print("\t\t\tSearching: Head Pos: ", headTurn)
     servo.setTarget(HEADTURN, headTurn)
-    servo.setTarget(HEADTILT, headTilt)
 
     if not blob_found:
         threading.Timer(1.0, search).start()
     else: # no longer searching if found a face
         searching = False
+
+
+def reposition(turn_dir):
+    global turn
+    if turn_dir == 'right':
+        print('\treposition to the right')
+        # turn -= 200
+        turn = min_turn
+        if turn < min_turn:
+            turn = min_turn
+    elif turn_dir == 'left':
+        print('\treposition to the left')
+        # turn += 200
+        turn = max_turn
+        if turn > max_turn:
+            turn = max_turn
+    else:
+        print('Going streight')
+        # print('\tYa, something broke....')
+    servo.setTarget(TURN, turn)
+    time.sleep(0.25)
+    # print('\trepositioning turn value: ' + str(servo.getPosition(TURN)))
+    turn = 6000
+    servo.setTarget(TURN, turn)
+    time.sleep(.5)
+
+
+def go_forward():
+    servo.setTarget(MOTORS, max_move)
+
 
 def contourArea(cnt):
    x,y,w,h = cv.boundingRect(cnt)
@@ -115,6 +153,13 @@ def prepareImage(img):
     erosion = cv.erode(blur, kernel, iterations=4)
     dilation = cv.dilate(erosion, kernel, iterations=2)
     return dilation
+
+
+def get_center(cnt):
+    x,y,w,h = cv.boundingRect(cnt)
+    center = np.array([x+(w/2), y+(h/2)])
+    print("CENTER: ", center)
+    return center
 
 def find_contours(color, img):
     prep_img = prepareImage(img)
@@ -130,23 +175,35 @@ def find_contours(color, img):
 
     contours, hierarchy = cv.findContours(edges, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
     contoursS = sorted(contours, key=lambda x: contourArea(x))
-    '''
+    if len(contoursS) > 0:
+        cnt = contoursS[0]
+        cv.drawContours(img, [cnt], -1, (0,255,0), 3)
+    print("CONTOUR COUNT: ", len(contours))
     cx, cy = 0,0
     for cnt in contoursS:
         x,y,w,h = cv.boundingRect(cnt)
-        cv.rectangle(thresh, (x,y), (x+w,y+h), (0,255,0), 2)
-        cv.rectangle(edge_copy, (x,y), (x+w,y+h), (0,255,0), 2)
-        print(contourArea(cnt))
+        cv.rectangle(filtered_img, (x,y), (x+w,y+h), (0,0,255), 2)
+        #cv.rectangle(edge_copy, (x,y), (x+w,y+h), (0,255,0), 2)
 
         M = cv.moments(cnt)
         # print(M)
-        cx = int(M['m10']/M['m00'])
-        cy = int(M['m01']/M['m00'])
-        print('({}, {})'.format(cx, cy))
-        print(contourArea(cnt))
+        if M['m00'] == 0:
+            div_by =0.1
+        else:
+            div_by = M['m00']
+
+        cx = int(M['m10']/div_by)
+        cy = int(M['m01']/div_by)
+
+        #print('({}, {})'.format(cx, cy))
+        #print("CONTOUR AREA: ", contourArea(cnt))
         break
-        '''
-    return len(contours)
+    if len(contoursS) > 0:
+        center = get_center(contoursS[0])
+    cv.drawContours(img, contoursS, -1, (0,0,255), 3)
+    cv.imshow("filtered", filtered_img)
+    cv.imshow("original", img)
+    return contoursS, len(contoursS)
 
 
 def find_blob(color, img):
@@ -160,9 +217,9 @@ def find_blob(color, img):
 
     filtered_img = cv.inRange(hsv_img, min_hsv, max_hsv)
     edges = cv.Canny(filtered_img, 35, 150, L2gradient=True)
-    keypoints = detector.detect(filtered_img)
-    keypoints_im = cv.drawKeypoints(filtered_img, np.array([]), (0,0,255), cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-    return keypoints_im
+    #keypoints = detector.detect(filtered_img)
+    #keypoints_im = cv.drawKeypoints(filtered_img, np.array([]), (0,0,255), cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    #return keypoints_im
 #cv.rectangle(thresh,  (cx,cy), (cx+15, cy+15),(0,0,255), 2)
 #cv.rectangle(edge_copy,  (cx,cy), (cx+15, cy+15),(0,0,255), 2)
 
@@ -176,6 +233,9 @@ ice_max = np.array([255,255,255])
 try:
     servo.setTarget(HEADTILT, 5000)
     blob_found = False
+    go_to_bucket = False
+    repositioning = False
+    search()
 # capture frames from the camera
     time.sleep(0.1)
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
@@ -183,20 +243,42 @@ try:
         # and occupied/unoccupied text
         image = frame.array
         width, height, channel = image.shape
+        x_mid = width / 2
+        y_mid = height / 2
+        print("X MID: ", x_mid)
         prepped_img = prepareImage(image)
         hsv_img = cv.cvtColor(prepped_img, cv.COLOR_BGR2HSV)
 
         filtered_img = cv.inRange(hsv_img, green_ice_min, green_ice_max)
         edges = cv.Canny(filtered_img, 35, 150, L2gradient=True)
+        contours, cnt_count = find_contours("green", image)
 
+        if go_to_bucket:
+            print("Going to bucket!")
+            go_forward()
+        elif repositioning:
+            # Reposition
+            print("FOUND THE BUCKET! WILL NOW REPOSITION!")
+            servo.setTarget(HEADTURN, headTurn)
+            if cnt_count > 0:
+                bucket_center = get_center(contours[0])
+                if bucket_center[0] > x_mid + 50:
+                    reposition("right")
+                elif bucket_center[0] < x_mid - 50:
+                    reposition("left")
+                elif bucket_center[0] >= x_mid - 50 and bucket_center[0] <= x_mid + 50:
+                    print("GOING TO BUCKET")
+                    repositioning = False
+                    go_to_bucket = True
 
-        #print("BLOB COUNT: ", find_blob("green", image))
-        keypoints_im = find_blob("green", image)
-        cv.imshow("keypoints", keypoints_im)
-        cv.imshow("original", image)
-        cv.imshow("edges", edges)
-        cv.imshow("hsv", hsv_img)
-        cv.imshow("filtered", filtered_img)
+        elif cnt_count > 0:
+            print("Found the bucket!")
+            blob_found = True
+            repositioning = True
+        else:
+            blob_found = False
+            go_to_bucket = False
+
         key = cv.waitKey(1) & 0xFF
 
         # clear the stream in preparation for the next frame
