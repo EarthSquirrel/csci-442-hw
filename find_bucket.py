@@ -137,9 +137,16 @@ def reposition(turn_dir):
     servo.setTarget(TURN, turn)
     time.sleep(.5)
 
+def pause():
+    # print('in stop: stopping motors')
+    global motors, turn, body, headTurn, headTilt
+    motors = 6000
+    turn = 6000
+    body = 6000
+
 
 def go_forward():
-    servo.setTarget(MOTORS, max_move)
+    servo.setTarget(MOTORS, 5400)
 
 
 def contourArea(cnt):
@@ -158,7 +165,7 @@ def prepareImage(img):
 def get_center(cnt):
     x,y,w,h = cv.boundingRect(cnt)
     center = np.array([x+(w/2), y+(h/2)])
-    print("CENTER: ", center)
+    #print("CENTER: ", center)
     return center
 
 def find_contours(color, img):
@@ -178,7 +185,6 @@ def find_contours(color, img):
     if len(contoursS) > 0:
         cnt = contoursS[0]
         cv.drawContours(img, [cnt], -1, (0,255,0), 3)
-    print("CONTOUR COUNT: ", len(contours))
     cx, cy = 0,0
     for cnt in contoursS:
         x,y,w,h = cv.boundingRect(cnt)
@@ -201,7 +207,7 @@ def find_contours(color, img):
     if len(contoursS) > 0:
         center = get_center(contoursS[0])
     cv.drawContours(img, contoursS, -1, (0,0,255), 3)
-    cv.imshow("filtered", filtered_img)
+    #cv.imshow("filtered", filtered_img)
     cv.imshow("original", img)
     return contoursS, len(contoursS)
 
@@ -217,21 +223,13 @@ def find_blob(color, img):
 
     filtered_img = cv.inRange(hsv_img, min_hsv, max_hsv)
     edges = cv.Canny(filtered_img, 35, 150, L2gradient=True)
-    #keypoints = detector.detect(filtered_img)
-    #keypoints_im = cv.drawKeypoints(filtered_img, np.array([]), (0,0,255), cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-    #return keypoints_im
-#cv.rectangle(thresh,  (cx,cy), (cx+15, cy+15),(0,0,255), 2)
-#cv.rectangle(edge_copy,  (cx,cy), (cx+15, cy+15),(0,0,255), 2)
 
-#cv.drawContours(tours, contours, -1, (0,0,255), -1)
-#cv.imshow('Contours', thresh)
-#cv.imshow('edge contour', edge_copy)
 
 ice_min = np.array([20,20,20])
 ice_max = np.array([255,255,255])
 
 try:
-    servo.setTarget(HEADTILT, 5000)
+    servo.setTarget(HEADTILT, 3000)
     blob_found = False
     go_to_bucket = False
     repositioning = False
@@ -239,23 +237,36 @@ try:
 # capture frames from the camera
     time.sleep(0.1)
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+
         # grab the raw NumPy array representing the image, then initialize the timestamp
         # and occupied/unoccupied text
         image = frame.array
-        width, height, channel = image.shape
+        small_img = image.copy()
+        height, width, channel = image.shape
         x_mid = width / 2
         y_mid = height / 2
-        print("X MID: ", x_mid)
+        small_img = cv.resize(small_img, (width, int(height*0.6)))
+        cv.imshow("Small Orig", small_img)
         prepped_img = prepareImage(image)
         hsv_img = cv.cvtColor(prepped_img, cv.COLOR_BGR2HSV)
-
         filtered_img = cv.inRange(hsv_img, green_ice_min, green_ice_max)
         edges = cv.Canny(filtered_img, 35, 150, L2gradient=True)
         contours, cnt_count = find_contours("green", image)
 
+
         if go_to_bucket:
             print("Going to bucket!")
-            go_forward()
+            raw_img = hsv_img.copy()
+            resized = cv.resize(raw_img, (width, int(height*0.6)))
+            small_conts, small_cnt_count = find_contours("green", resized)
+            bucket_center = get_center(small_conts[0])
+            print("BUCKET CENTER: ", bucket_center)
+            print("SMALL CONTOUR COUNT: ", small_cnt_count)
+            if bucket_center[1] < 260:
+                go_to_bucket = False
+                stop()
+            else:
+                go_forward()
         elif repositioning:
             # Reposition
             print("FOUND THE BUCKET! WILL NOW REPOSITION!")
@@ -281,12 +292,14 @@ try:
 
         key = cv.waitKey(1) & 0xFF
 
-        # clear the stream in preparation for the next frame
-        rawCapture.truncate(0)
-
         # if the `q` key was pressed, break from the loop
         if key == ord("q"):
             break
+
+
+        # clear the stream in preparation for the next frame
+        rawCapture.truncate(0)
+
 
 
 except: # catch *all* exceptions
