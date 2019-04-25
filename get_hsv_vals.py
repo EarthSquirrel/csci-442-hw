@@ -5,7 +5,7 @@ cv.namedWindow("original", cv.WINDOW_NORMAL)
 cv.namedWindow("hsv", cv.WINDOW_NORMAL)
 cv.namedWindow("filter", cv.WINDOW_NORMAL)
 
-img = cv.imread('hand2.png')# 'hand-imag2e.png')
+img = cv.imread('pint-ice.png')# 'hand-imag2e.png')
 hsv_img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
 
 
@@ -25,7 +25,9 @@ yellow_max = np.array([23, 130, 245])
 yellow_min = np.array([100, 0, 150])
 yellow_max = np.array([135, 15, 255])
 
-hsv_filter = cv.inRange(hsv_img, yellow_min, yellow_max)
+hsv_min, hsv_max = (150, 100, 230), (170, 140, 255)
+
+hsv_filter = cv.inRange(hsv_img, hsv_min, hsv_max)
 
 
 def get_hsv_val(event, x, y, flags, param):

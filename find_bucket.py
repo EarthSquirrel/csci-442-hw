@@ -109,7 +109,15 @@ def contourArea(cnt):
    return w*h
 
 
-def find_blob(color, img):
+def prepareImage(img):
+    kernel = np.ones((10,10), np.uint8)
+    blur = cv.blur(img,(7,7))
+    erosion = cv.erode(blur, kernel, iterations=4)
+    dilation = cv.dilate(erosion, kernel, iterations=2)
+    return dilation
+
+def find_contours(color, img):
+    prep_img = prepareImage(img)
     hsv_img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
 
     if color == "green":
@@ -137,9 +145,24 @@ def find_blob(color, img):
         print('({}, {})'.format(cx, cy))
         print(contourArea(cnt))
         break
-    '''
+        '''
     return len(contours)
 
+
+def find_blob(color, img):
+    prep_img = prepareImage(img)
+    hsv_img = cv.cvtColor(prep_img, cv.COLOR_BGR2HSV)
+    detector = cv.SimpleBlobDetector_create()
+
+    if color == "green":
+        min_hsv = green_ice_min
+        max_hsv = green_ice_max
+
+    filtered_img = cv.inRange(hsv_img, min_hsv, max_hsv)
+    edges = cv.Canny(filtered_img, 35, 150, L2gradient=True)
+    keypoints = detector.detect(filtered_img)
+    keypoints_im = cv.drawKeypoints(filtered_img, np.array([]), (0,0,255), cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    return keypoints_im
 #cv.rectangle(thresh,  (cx,cy), (cx+15, cy+15),(0,0,255), 2)
 #cv.rectangle(edge_copy,  (cx,cy), (cx+15, cy+15),(0,0,255), 2)
 
@@ -160,12 +183,17 @@ try:
         # and occupied/unoccupied text
         image = frame.array
         width, height, channel = image.shape
-        hsv_img = cv.cvtColor(image, cv.COLOR_BGR2HSV)
+        prepped_img = prepareImage(image)
+        hsv_img = cv.cvtColor(prepped_img, cv.COLOR_BGR2HSV)
+
         filtered_img = cv.inRange(hsv_img, green_ice_min, green_ice_max)
         edges = cv.Canny(filtered_img, 35, 150, L2gradient=True)
 
 
-        print("BLOB COUNT: ", find_blob("green", image))
+        #print("BLOB COUNT: ", find_blob("green", image))
+        keypoints_im = find_blob("green", image)
+        cv.imshow("keypoints", keypoints_im)
+        cv.imshow("original", image)
         cv.imshow("edges", edges)
         cv.imshow("hsv", hsv_img)
         cv.imshow("filtered", filtered_img)
