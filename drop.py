@@ -4,6 +4,7 @@ from picamera import PiCamera
 import time
 import cv2 as cv
 import numpy as np
+import threading
 
 
 servo = maestro.Controller()
@@ -20,7 +21,7 @@ TWIST = 7
 WRIST = 11
 
 open_hand = 4000
-closed_hand = 7400
+closed_hand = 5600
 raised_arm = 8000
 lower_arm = 4000
 elbow_straight = 6000
@@ -59,11 +60,14 @@ def get_hsv_filter(raw_img, hsv_min, hsv_max):
 
 counting_ice_cnts = False
 counting_ice_cnts_timer = 0
+hasBall = False
 
 def cnts_ice_timer():
+    global counting_ice_cnts_timer
     counting_ice_cnts_timer += 1
+    print('\t\tContours ice timer: {}'.format(counting_ice_cnts_timer))
     if counting_ice_cnts:
-        threading.Timer(cnts_ice_timer, 1)
+        threading.Timer(1,cnts_ice_timer).start()
 
 def get_contours(edges):
     contours, hierarchy = cv.findContours(edges, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
@@ -72,35 +76,16 @@ def get_contours(edges):
     contoursS.reverse()
     return contoursS
 
-def get_ice():
-    pass
-
 def detect_ice(raw_img):
+    global counting_ice_cnts, counting_ice_cnts_timer, hasBall
     width, height, channel = raw_img.shape
     width_array = len(raw_img[0])
-    raw_img = raw_img[int(height/6):int(2*height/3),int(width_array/2):width_array]#int(width/3):width] # int(width*.25):int(width*.75)]
-
-    # yellow_min = np.array([100, 0, 150])
-    # yellow_max = np.array([135, 15, 255])
-
-    hsv_min, hsv_max = (50,0,150), (135,50,255)
-    hsv_min, hsv_max = (75,0,150), (180,50,255)
-    hand_filter = get_hsv_filter(raw_img, hsv_min, hsv_max)
-    cv.imshow("filter", hand_filter)
-
-    # cv.imshow('hsv',color_filter) # hsv)
-
-    edges = cv.Canny(hand_filter, 35, 150, L2gradient=True)
-    kernel = np.ones((10,10), np.uint8)
-    dil_edges = cv.dilate(edges, kernel, iterations=1)
-    # cv.imshow('edges', dil_edges)
-    thresh = raw_img.copy()
-
+    raw_img = raw_img[int(height/6):int(2*height/3)-20,int(width_array/2)+100:width_array-50]#int(width/3):width] # int(width*.25):int(width*.75)]
 
 
     hsv_min, hsv_max = (25, 0, 240), (35, 170, 255)
     ice_filter = get_hsv_filter(raw_img, hsv_min, hsv_max)
-    cv.imshow("ice", ice_filter)
+    # cv.imshow("ice", ice_filter)
 
     # cv.imshow('hsv',color_filter) # hsv)
 
@@ -109,39 +94,44 @@ def detect_ice(raw_img):
     dil_edges = cv.dilate(edges, kernel, iterations=1)
     ice_cnts = get_contours(dil_edges)
 
-    if len(ice_cnts) > 0 and counting_ice_cnts:
+    if counting_ice_cnts:
         if counting_ice_cnts_timer > 3:
             counting_ice_cnts = False
+            print('GRAB THE ICE!!!')
+            servo.setTarget(HAND, closed_hand)
+            hasBall = True
             #TODO: grab the ice
-    elif len(ice_cnts) > 0:
+    elif len(ice_cnts) > 0 and not hasBall:
+        print('first time seeing ice cnts')
         counting_ice_cnts = True
+        counting_ice_cnts_timer = 0
+        threading.Timer(1, cnts_ice_timer).start()
 
+    thresh = raw_img.copy()
+    for cnt in ice_cnts:
+        x,y,w,h = cv.boundingRect(cnt)
+        cv.rectangle(thresh, (x,y), (x+w,y+h,), (0,255,255), 2)
 
-    cx, cy = width*100, height*100
-    width, height, channel = raw_img.shape
-    for cnt in contoursS:
+    # Detect the green is wrong
+    hsv_min, hsv_max = (50,190,160), (55,205,170)
+    # these are pink colors
+    hsv_min, hsv_max = (0, 0, 230), (170, 140, 255)
+    hsv_min, hsv_max = (150, 100, 230), (170, 140, 255)
+    green_filter = get_hsv_filter(raw_img, hsv_min, hsv_max)
+    # cv.imshow("ice", ice_filter)
+
+    # cv.imshow('hsv',color_filter) # hsv)
+
+    edges = cv.Canny(green_filter, 35, 150, L2gradient=True)
+    kernel = np.ones((10,10), np.uint8)
+    dil_edges = cv.dilate(edges, kernel, iterations=1)
+    green_cnts = get_contours(dil_edges)
+    if len(green_cnts) > 0:
+        print('Not the green, yellow ice please')
+    for cnt in green_cnts:
         x,y,w,h = cv.boundingRect(cnt)
         cv.rectangle(thresh, (x,y), (x+w,y+h,), (0,255,0), 2)
-        if w*h > 100:
-            # print('area is {} too small. No contours found.'.format(x*y))
-
-            M = cv.moments(cnt)
-            if M['m00'] == 0:
-                div_by =0.1
-            else:
-                div_by = M['m00']
-
-            cx = int(M['m10']/div_by)
-            cy = int(M['m01']/div_by)
-
-            cog = (cx, cy)
-            temp_dist =np.linalg.norm(np.array(cog) - np.array((width/2, height/2)))
-            if temp_dist < center_contour[0]:
-                center_contour = (temp_dist, cnt, cog)
-
-            cv.rectangle(thresh, (cx,cy), (cx+29, cy+20),(255,255,255), 2)
-
-
+    cv.imshow('ice seen', thresh)
 
 
 
@@ -162,7 +152,8 @@ for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=
     detect_ice(image)
 
     # show the frame
-
+    if hasBall:
+        break
 
     cv.imshow("Frame", image)# pic)
     key = cv.waitKey(1) & 0xFF

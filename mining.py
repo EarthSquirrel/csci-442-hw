@@ -204,6 +204,52 @@ def faces_found(frame):
     return real_faces
 
 
+def cnts_ice_timer():
+    global counting_ice_cnts_timer
+    counting_ice_cnts_timer += 1
+    print('\t\tContours ice timer: {}'.format(counting_ice_cnts_timer))
+    if counting_ice_cnts:
+        threading.Timer(1,cnts_ice_timer).start()
+
+# TODO: Import new method
+def detect_ice(raw_img):
+    global counting_ice_cnts, counting_ice_cnts_timer, hasBall
+    width, height, channel = raw_img.shape
+    width_array = len(raw_img[0])
+    raw_img = raw_img[int(height/6):int(2*height/3),int(width_array/2):width_array]#int(width/3):width] # int(width*.25):int(width*.75)]
+
+
+    hsv_min, hsv_max = (25, 0, 240), (35, 170, 255)
+    ice_filter = get_hsv_filter(raw_img, hsv_min, hsv_max)
+    # cv.imshow("ice", ice_filter)
+
+    # cv.imshow('hsv',color_filter) # hsv)
+
+    edges = cv.Canny(ice_filter, 35, 150, L2gradient=True)
+    kernel = np.ones((10,10), np.uint8)
+    dil_edges = cv.dilate(edges, kernel, iterations=1)
+    ice_cnts = get_contours(dil_edges)
+
+    if counting_ice_cnts:
+        if counting_ice_cnts_timer > 3:
+            counting_ice_cnts = False
+            print('GRAB THE ICE!!!')
+            servo.setTarget(HAND, closed_hand)
+            hasBall = True
+    elif len(ice_cnts) > 0 and not hasBall:
+        print('first time seeing ice cnts')
+        counting_ice_cnts = True
+        counting_ice_cnts_timer = 0
+        threading.Timer(1, cnts_ice_timer).start()
+
+    thresh = raw_img.copy()
+    for cnt in ice_cnts:
+        x,y,w,h = cv.boundingRect(cnt)
+        cv.rectangle(thresh, (x,y), (x+w,y+h,), (0,255,0), 2)
+    cv.imshow('ice seen', thresh)
+
+
+
 def stop():
     print('in stop: stopping motors')
     global motors, turn, body, headTurn, headTilt
@@ -325,8 +371,12 @@ BODY = 0
 HEADTILT = 4
 HEADTURN = 3
 ARM = 6
-HAND = 11
-TWISTARM = 7
+HAND = 10
+ELBOW = 8
+TWIST = 7
+WRIST = 11
+
+
 
 motors = 6000
 turn = 6000
@@ -342,12 +392,20 @@ max_head_turn = 7500 # max 7900
 min_head_turn = 4000 # min 1510
 min_head_tilt = 1510
 max_time = 5
-min_arm = 0
-max_arm = 200
-min_hand = -50
-max_hand = 50
-twistarm_inward = -150
-twistarm_normal = 150  # outward in this case!!! -_-
+
+open_hand = 4000
+closed_hand = 5600
+raised_arm = 8000
+lower_arm = 4000
+elbow_straight = 6000
+twist_in = 5000
+wrist = 6000
+
+# set arm so don't have to deal with it later
+servo.setTarget(ARM, raised_arm)
+servo.setTarget(HAND, open_hand)
+servo.setTarget(TWIST, twist_in)
+servo.setTarget(WRIST, wrist)
 
 
 # In the hall
@@ -388,6 +446,10 @@ turn_dir = 'boom'
 move_wait_time = 1.0  # time to wait before moving to new position head
 face_timer = 0
 doom_timer = 3 # how long to wait when losing a face before stopping
+counting_ice_cnts = False  # checks if has seen the ice or not
+counting_ice_cnts_timer = 0  # must see the ice for certian amount of tiime, thne close hand
+
+#
 
 # other
 END_PROGRAM = False
@@ -483,7 +545,7 @@ try:
                     servo.setTarget(TWISTARM, twistarm_inward)
 
             if hasBall:
-                pass
+                print('The robot now has the ice!')
 
             elif not hasBall:
 
@@ -529,17 +591,7 @@ try:
                         else:
                             go_straight()
                     elif stopped:
-                        # TODO: Put code ot get ice here
-                        # get_ice(image)
-                        pass
-                        """
-                        if face_timer > 7:
-                            sawHuman= False
-                            gotoHuman = False
-                            repositioning = False
-                            searching = True
-                            stopped = False
-                        """
+                        detect_ice(image)
 
                     else:
                         go_straight()
