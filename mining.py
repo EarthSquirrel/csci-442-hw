@@ -219,13 +219,13 @@ def cnts_ice_timer():
 
 # TODO: Import new method
 def detect_ice(raw_img):
-    global counting_ice_cnts, counting_ice_cnts_timer, hasBall
+    global counting_ice_cnts, counting_ice_cnts_timer, hasBall, rejectedPink
     width, height, channel = raw_img.shape
     width_array = len(raw_img[0])
-    raw_img = raw_img[int(height/6):int(2*height/3),int(width_array/2):width_array]#int(width/3):width] # int(width*.25):int(width*.75)]
+    raw_img = raw_img[int(height/6):int(2*height/3)-20,int(width_array/2)+100:width_array-50]#int(width/3):width] # int(width*.25):int(width*.75)]
 
 
-    hsv_min, hsv_max = (25, 0, 240), (35, 170, 255)
+    hsv_min, hsv_max = (40, 200, 200), (50, 240, 240)
     ice_filter = get_hsv_filter(raw_img, hsv_min, hsv_max)
     # cv.imshow("ice", ice_filter)
 
@@ -242,8 +242,9 @@ def detect_ice(raw_img):
             print('GRAB THE ICE!!!')
             servo.setTarget(HAND, closed_hand)
             hasBall = True
+            #TODO: grab the ice
     elif len(ice_cnts) > 0 and not hasBall:
-        print('first time seeing ice cnts')
+        print('I will take that')
         counting_ice_cnts = True
         counting_ice_cnts_timer = 0
         threading.Timer(1, cnts_ice_timer).start()
@@ -251,9 +252,23 @@ def detect_ice(raw_img):
     thresh = raw_img.copy()
     for cnt in ice_cnts:
         x,y,w,h = cv.boundingRect(cnt)
-        cv.rectangle(thresh, (x,y), (x+w,y+h,), (0,255,0), 2)
-    cv.imshow('ice seen', thresh)
+        cv.rectangle(thresh, (x,y), (x+w,y+h,), (0,0,255), 2)
 
+    # these are pink colors
+    hsv_min, hsv_max = (150, 100, 230), (170, 140, 255)
+    pink_filter = get_hsv_filter(raw_img, hsv_min, hsv_max)
+
+    edges = cv.Canny(pink_filter, 35, 150, L2gradient=True)
+    kernel = np.ones((10,10), np.uint8)
+    dil_edges = cv.dilate(edges, kernel, iterations=1)
+    green_cnts = get_contours(dil_edges)
+    if len(green_cnts) > 0 and not rejectedPink:
+        print('Not the pink, green ice please')
+        rejectedPink = True
+    for cnt in green_cnts:
+        x,y,w,h = cv.boundingRect(cnt)
+        cv.rectangle(thresh, (x,y), (x+w,y+h,), (255, 0,0), 2)
+    cv.imshow('ice seen', thresh)
 
 
 def arm_down():
@@ -465,6 +480,7 @@ face_timer = 0
 doom_timer = 3 # how long to wait when losing a face before stopping
 counting_ice_cnts = False  # checks if has seen the ice or not
 counting_ice_cnts_timer = 0  # must see the ice for certian amount of tiime, thne close hand
+rejectedPink = False
 askedForIce = False
 gettingIce = False
 
