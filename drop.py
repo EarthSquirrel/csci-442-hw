@@ -72,7 +72,8 @@ def get_contours(edges):
     contoursS.reverse()
     return contoursS
 
-
+def get_ice():
+    pass
 
 def detect_ice(raw_img):
     width, height, channel = raw_img.shape
@@ -110,7 +111,8 @@ def detect_ice(raw_img):
 
     if len(ice_cnts) > 0 and counting_ice_cnts:
         if counting_ice_cnts_timer > 3:
-            pass
+            counting_ice_cnts = False
+            #TODO: grab the ice
     elif len(ice_cnts) > 0:
         counting_ice_cnts = True
 
