@@ -2,15 +2,12 @@
 from picamera.array import PiRGBArray
 from picamera import PiCamera
 import time
-import datetime as dt
 import cv2 as cv
 import maestro
-import sys
 import threading
 from client import ClientSocket
 import numpy as np
 import traceback
-import logging
 
 
 
@@ -51,12 +48,10 @@ def get_contours(edges):
     contoursS.reverse()
     return contoursS
 
-def check_crossed(raw_img):
+def check_crossed(raw_img,  hsv_min, hsv_max):
     global old_cog_line
     raw_img = raw_img[int(height/3):height, int(width/5):int(4*width/5)] # int(width*.25):int(width*.75)]
 
-    # yellow
-    hsv_min, hsv_max = (0, 40, 90), (75, 250, 255)
 
     color_filter = get_hsv_filter(raw_img, hsv_min, hsv_max)
     # cv.imshow('hsv',color_filter) # hsv)
@@ -473,25 +468,31 @@ try:
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         image = frame.array
         width, height, channel = image.shape
+        # yellow
+        yellow_min, yellow_max = (0, 40, 90), (75, 250, 255)
 
         # Change the state if crossed a line
-        if not searching and check_crossed(image):
+        if not searching and check_crossed(image, yellow_min, yellow_max):
             changedState = True
-            # TODO: Check this logic works on the field
             if start_field:
                 start_field = False
                 avoidance = True
             elif avoidance:
                 avoidance = False
-                mining=True
-                # shoot me please
-                pass
-            elif mining:
-                #mining = False
-                #avoidance = True
-                pass
+                start_field=True
             else:
-                print('not in any state, there"s a problem!')
+                print('not in any state, there"s a problem with yellow!')
+
+        pink_min, pink_max = (164, 65, 252), (166, 75, 255)
+        if not searching and check_crossed(image, pink_min, pink_max):
+            if avoidance:
+                avoidance = False
+                mining = True
+            elif mining:
+                mining = False
+                avoidance = True
+            else:
+                print('not in any state, there"s a problem with pink!')
 
         if start_field:
             if changedState:
@@ -539,10 +540,6 @@ try:
                 stop()
                 headTilt = 6000
                 servo.setTarget(HEADTILT, headTilt)
-                if move_arms:
-                    servo.setTarget(HAND, max_hand)
-                    servo.setTarget(ARM, max_arm)
-                    servo.setTarget(TWISTARM, twistarm_inward)
 
             if hasBall:
                 print('The robot now has the ice!')
