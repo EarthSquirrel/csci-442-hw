@@ -144,7 +144,7 @@ def get_turn_dir():
         turn_dir = 'left'
 
 
-def stop_face_size(width, faces):
+def stop_face_center(width, faces):
     global repositioning, gotoHuman
     face_center = faces[0][0] + 0.5*faces[0][2]
     if abs(face_center - width/2) < width/5:
@@ -170,15 +170,15 @@ def reposition(turn_dir):
         if turn > max_turn:
             turn = max_turn
     else:
-        print('Going streight')
+        print('Problem!')
         # print('\tYa, something broke....')
-        motors = max_move - 200
-        servo.setTarget(MOTORS, motors)
-        time.sleep(0.15)
-        motors = max_move +200
+        #motors = max_move - 200
+        #servo.setTarget(MOTORS, motors)
+        #time.sleep(0.15)
+        #motors = max_move +200
 
     servo.setTarget(TURN, turn)
-    servo.setTarget(MOTORS, motors)
+    # servo.setTarget(MOTORS, motors)
     time.sleep(0.25)
     # print('\trepositioning turn value: ' + str(servo.getPosition(TURN)))
     turn = 6000
@@ -384,14 +384,11 @@ def turn_right(weight):
         turn = min_turn
     servo.setTarget(TURN, turn)
 def talk(say_this):
-    PORT = 5010
-    client = ClientSocket(IP, PORT)
     ##client.start()
     for i in say_this:
         client.sendData(i)
         print('\tspeaking: ', i)
         time.sleep(1)
-    client.killSocket()
 
 
 
@@ -460,6 +457,9 @@ IP = '10.200.23.235'
 ############## Boolean values #######################
 #####################################################
 talking = True
+if talking:
+    PORT = 5010
+    client = ClientSocket(IP, PORT)
 
 # states
 start_field = True
@@ -639,7 +639,7 @@ try:
                         print('Was chacing, but lost face for too long. Stop!')
                         # print('*************DONE!*********************')
                         stop()
-                        sawHuman = False
+                        # sawHuman = False
                         gotoHuman = False
                         repositioning = False
                         searching = False
@@ -677,7 +677,7 @@ try:
                     if len(faces) > 0:
                         face_timer = 0
                         print('found a face!')
-                        stop_face_size(width, faces)
+                        stop_face_center(width, faces)
 
                 # the first time the face found
                 elif len(faces) > 0 and not sawHuman:
