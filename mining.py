@@ -74,7 +74,7 @@ def check_crossed(raw_img,  hsv_min, hsv_max, window_name='check crossed'):
         x,y,w,h = cv.boundingRect(cnt)
         cv.rectangle(thresh, (x,y), (x+w,y+h,), (0,255,0), 2)
         #print(w*h)
-        if w > width/4:
+        if w > 0: # width/4:
             paused = True
             M = cv.moments(cnt)
             if M['m00'] == 0:
@@ -139,7 +139,7 @@ def load_images_clock():
         threading.Timer(1, load_images_clock).start()
     else:
         load_images = False
-        go_straight()
+        ##go_straight()
 
 def get_turn_dir():
     global turn_dir
@@ -478,7 +478,7 @@ IP = '10.200.23.235'
 ##################################################3##
 ############## Boolean values #######################
 #####################################################
-talking = True
+talking = False
 if talking:
     PORT = 5010
     client = ClientSocket(IP, PORT)
@@ -553,13 +553,14 @@ try:
         # Change the state if crossed a line
         if not searching and check_crossed(image, yellow_min, yellow_max, 'yellow line') and not load_images:
             print('crossed a yellow line')
-            changedState = True
             if start_field:
                 start_field = False
                 avoidance = True
+                changedState = True
             elif avoidance:
                 avoidance = False
                 start_field=True
+                changedState = True
             else:
                 print('not in any state, there"s a problem with yellow!')
             print('Start {}, avoid {} mine {}'.format(start_field, avoidance, mining))
@@ -567,17 +568,18 @@ try:
         pink_min, pink_max = (164, 65, 252), (166, 75, 255)
         pink_min, pink_max = (155, 30, 250), (166, 40, 255)
         # ON the papers
-        #pink_min, pink_max = (155, 135, 170), (172, 150, 185)
+        # pink_min, pink_max = (155, 115, 170), (179, 150, 199)
 
         if not searching and check_crossed(image, pink_min, pink_max, 'pink line') and not load_images:
             print('Crossed a pink line')
-            changedState = True
             if avoidance:
                 avoidance = False
                 mining = True
+                changedState = True
             elif mining:
                 mining = False
                 avoidance = True
+                changedState = True
             else:
                 print('not in any state, there"s a problem with pink!')
 
