@@ -47,6 +47,18 @@ def search():
     else: # no longer searching if found a face
         searching = False
 
+def blobs_found(color):
+    if color == "yellow":
+        min_hsv = np.array([])
+        max_hsv = np.array([])
+    elif color == "green"
+        min_hsv = np.array([50, 190, 160])
+        max_hsv = np.array([55, 205, 170])
+    elif color == "white"
+        min_hsv = np.array([100, 5, 230])
+        max_hsv = np.array([130, 20, 255])
+
+
 try:
 frame_iter = 0
 blob_found = False

@@ -9,7 +9,8 @@ cv.namedWindow("hsv ice img", cv.WINDOW_NORMAL)
 img = cv.imread('image-.png')# 'hand-imag2e.png')
 yellow_img = cv.imread('yellow.png')
 green_img = cv.imread('green.png')
-hsv_ice_img = cv.cvtColor(green_img, cv.COLOR_BGR2HSV)
+hsv_ice_img = cv.cvtColor(yellow_img, cv.COLOR_BGR2HSV)
+thresh = green_img
 
 hsv_img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
 
@@ -34,7 +35,7 @@ yellow_ice_max = np.array([35, 170, 220])
 green_ice_min = np.array([50, 190, 160])
 green_ice_max = np.array([55, 205, 170])
 
-hsv_filter = cv.inRange(hsv_ice_img, green_ice_min, green_ice_max)
+hsv_filter = cv.inRange(hsv_ice_img, yellow_ice_min, yellow_ice_max)
 
 # worked on hand-imag2e.png
 # yellow_min = np.array([100, 0, 150])
@@ -55,6 +56,13 @@ while True:
 	cv.imshow('original', green_img)
 	cv.imshow('hsv ice img', hsv_ice_img)
 	cv.imshow('filter', hsv_filter)
+
+	img2, contours, hierarchy = cv.findContours(hsv_filter, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
+	# for cnt in contours:
+	# 	x,y,w,h = cv.boundingRect(cnt)
+	# 	cv.rectangle(hsv_filter, (x,y), (x+w,y+h,), (0,255,0), 2)
+
+	cv.drawContours(hsv_filter, contours, -1, (0,255,0), -1)
 
 	k = cv.waitKey(1)
 	if k == 27:
