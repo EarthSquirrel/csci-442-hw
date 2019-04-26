@@ -637,14 +637,13 @@ try:
                 servo.setTarget(HEADTILT, headTilt)
 
             if hasBall:
-                # TODO: Start turning in small incriments and look for the
-                # green box
                 if not searchingTurn:
                     servo.setTarget(HEADTILT, 6000)
                     # search_turn()
                     searchingTurn = True
                     print('starting to spin and search for green')
-                pass
+                else:
+                    # locate the green box
 
             elif not hasBall:
 
