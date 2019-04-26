@@ -364,6 +364,57 @@ def search():
     else: # no longer searching if found a face
         searching = False
 
+def detect_green_box(image, hsv_min, hsv_max):
+    hsv = get_hsv_filter(hsv_min, hsv_max)
+
+    edges = cv.Canny(hsv, 35, 150, L2gradient=True)
+    kernel = np.ones((10,10), np.uint8)
+    dil_edges = cv.dilate(edges, kernel, iterations=1)
+    # cv.imshow('edges', dil_edges)
+
+    thresh = image.copy()
+
+    contours = get_contours(dil_edges)
+
+    for cnt in contours:
+        x,y,w,h = cv.boundingRect(cnt)
+        cv.rectangle(thresh, (x,y), (x+w,y+h,), (255, 0,0), 2)
+
+    cv.imshow('Search for green', thresh)
+    if len(contours) > 0:
+        return True
+    else:
+        return False
+
+# TODO: TEst this logic
+def which_center_green(image):
+    h_img, w_img, c = image.shape
+    center = int(w_img/2)
+
+    thresh = image.copy()
+
+    hsv = get_hsv_filter(image)
+    edges = cv.Canny(hsv, 35, 150, L2gradient=True)
+    kernel = np.ones((10,10), np.uint8)
+    dil_edges = cv.dilate(edges, kernel, iterations=1)
+    contours = get_contours(dil_edges)
+
+    for cnt in contours:
+        x,y,w,h = cv.boundingRect(cnt)
+        cv.rectangle(thresh, (x,y), (x+w,y+h,), (255, 0,0), 2)
+        cv.imshow('Search for green', thresh)
+        if abs(x - center) <= w/2:
+            if x - center < 0:
+                # contour on left side of screen
+                return 'left'
+            else:
+                return 'right'
+
+
+
+    # find which side of the image the green box is on, th
+    return 'left'
+
 def search_turn():
     turn = max_turn
     servo.setTarget(TURN, turn)
@@ -405,6 +456,8 @@ def turn_right(weight):
     if turn < min_turn:
         turn = min_turn
     servo.setTarget(TURN, turn)
+
+
 def talk(say_this):
     ##client.start()
     for i in say_this:
@@ -516,6 +569,7 @@ rejectedPink = False
 askedForIce = False
 gettingIce = False
 searchingTurn = False
+locatedGreenBox = False
 
 #
 
@@ -637,13 +691,22 @@ try:
                 servo.setTarget(HEADTILT, headTilt)
 
             if hasBall:
-                if not searchingTurn:
+                if not searchingTurn and not locatedGreenBox:
                     servo.setTarget(HEADTILT, 6000)
                     # search_turn()
                     searchingTurn = True
                     print('starting to spin and search for green')
                 else:
-                    # locate the green box
+                    # locate the green box while searching
+                    green_min, green_max = (), ()
+                    if not locatedGreenBox:
+                        if detect_green_box():
+                            searchingTurn = False
+                            locatedGreenBox = True
+                    else: # locatedGreenBox
+                        # reposition until green box is in the center of screen
+                        green_turn_dir = which_center_green()
+                        reposition(green_turn_dir)
 
             elif not hasBall:
 
