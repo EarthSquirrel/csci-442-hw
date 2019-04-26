@@ -294,11 +294,12 @@ def detect_ice(raw_img):
 
 def arm_down():
     # set arm so don't have to deal with it later
-    servo.setTarget(ARM, lower_arm)
+    servo.setTarget(TWIST, twist_out)
+    time.sleep(.25)
     servo.setTarget(HAND, open_hand)
     servo.setTarget(ELBOW, elbow_straight)
-    servo.setTarget(TWIST, twist_out)
     servo.setTarget(WRIST, wrist)
+    servo.setTarget(ARM, lower_arm)
 
 
 
@@ -369,7 +370,7 @@ def search():
         searching = False
 
 def detect_green_box(image, hsv_min, hsv_max):
-    hsv = get_hsv_filter(hsv_min, hsv_max)
+    hsv = get_hsv_filter(image, hsv_min, hsv_max)
 
     edges = cv.Canny(hsv, 35, 150, L2gradient=True)
     kernel = np.ones((10,10), np.uint8)
@@ -391,13 +392,13 @@ def detect_green_box(image, hsv_min, hsv_max):
         return False
 
 # TODO: TEst this logic
-def which_center_green(image):
+def which_center_green(image, hsv_min, hsv_max):
     h_img, w_img, c = image.shape
     center = int(w_img/2)
 
     thresh = image.copy()
 
-    hsv = get_hsv_filter(image)
+    hsv = get_hsv_filter(image, hsv_min, hsv_max)
     edges = cv.Canny(hsv, 35, 150, L2gradient=True)
     kernel = np.ones((10,10), np.uint8)
     dil_edges = cv.dilate(edges, kernel, iterations=1)
@@ -407,19 +408,28 @@ def which_center_green(image):
         x,y,w,h = cv.boundingRect(cnt)
         cv.rectangle(thresh, (x,y), (x+w,y+h,), (255, 0,0), 2)
         cv.imshow('Search for green', thresh)
-        if abs(x - center) <= w/2:
+        if abs(x - center) <= w_img/6:
+            print('Green is in the center!!!!')
+            return 'center'
+        else:
+            print('Green is not in center of screen')
             if x - center < 0:
-                # contour on left side of screen
-                return 'left'
-            else:
+                print("it's on the left side!")
+                # contour on left side of scree
                 return 'right'
-
+            else:
+                print("it's on the right side")
+                return 'left'
+    return 'none'
 
 
     # find which side of the image the green box is on, th
     return 'left'
 
 def search_turn():
+    if END_PROGRAM:
+        stop()
+        return
     turn = max_turn
     servo.setTarget(TURN, turn)
     time.sleep(.25)
@@ -429,7 +439,8 @@ def search_turn():
     servo.setTarget(TURN, turn)
     time.sleep(.25)
     if searchingTurn:
-        threading.Timer(.01, search_turn).start()
+        print('search_turn')
+        threading.Timer(.25, search_turn).start()
 
 
 # greater than 6000
@@ -481,18 +492,16 @@ def talk(say_this):
 # TODO: Add information for arms here
 servo = maestro.Controller()
 
-MOTORS = 1
-TURN = 2
+MOTORS =  2# 1
+TURN = 1 # 2
 BODY = 0
 HEADTILT = 4
 HEADTURN = 3
 ARM = 6
-HAND = 10
+HAND = 11
 ELBOW = 8
 TWIST = 7
-WRIST = 11
-
-
+WRIST = 10
 
 motors = 6000
 turn = 6000
@@ -510,15 +519,16 @@ max_time = 5
 
 open_hand = 4000
 closed_hand = 5600
-raised_arm = 8000
+raised_arm = 7000 # 8000
 lower_arm = 4000
 elbow_straight = 6000
 twist_in = 5000
-twist_out = 6000
-wrist = 6000
+twist_out = 7000
+wrist = 8000
 
 # set arm so don't have to deal with it later
 servo.setTarget(ARM, raised_arm)
+time.sleep(.5)
 servo.setTarget(HAND, open_hand)
 servo.setTarget(TWIST, twist_in)
 servo.setTarget(WRIST, wrist)
@@ -574,6 +584,7 @@ askedForIce = False
 gettingIce = False
 searchingTurn = False
 locatedGreenBox = False
+moveToGreen = False
 
 #
 
@@ -596,6 +607,7 @@ threading.Timer(1, load_images_clock).start()
 # avoidance = True
 start_field = False
 mining = True
+# hasBall= True
 
 try:
 # capture frames from the camera
@@ -698,21 +710,39 @@ try:
 
             if hasBall:
                 if not searchingTurn and not locatedGreenBox:
-                    servo.setTarget(HEADTILT, 6000)
-                    # search_turn()
+                    servo.setTarget(TWIST, twist_out)
+                    servo.setTarget(HEADTILT, 1510)
                     searchingTurn = True
+                    search_turn()
                     print('starting to spin and search for green')
                 else:
                     # locate the green box while searching
-                    green_min, green_max = (), ()
+                    green_min, green_max = (20, 160, 120), (75, 225, 190)
                     if not locatedGreenBox:
-                        if detect_green_box():
-                            searchingTurn = False
+                        print('detecting green box!')
+                        if detect_green_box(image, green_min, green_max):
+                            # searchingTurn = False
                             locatedGreenBox = True
-                    else: # locatedGreenBox
-                        # reposition until green box is in the center of screen
-                        green_turn_dir = which_center_green()
-                        reposition(green_turn_dir)
+                            searchingTurn = False
+                    else:  # locatedGreenBox
+                            # reposition until green box is in the center of screen
+                        if not moveToGreen:
+                            green_turn_dir = which_center_green(image, green_min, green_max)
+                            if green_turn_dir == 'center':
+                                stop()  # stop for now
+                                moveToGreen = True
+                                print('Towards green! go_straight and do magical things!')
+                            elif green_turn_dir == 'none':
+                                # reset so it starts spinning again
+                                locatedGreenBox = False
+                                searchingTurn = False
+                            else: # left or right
+                                reposition(green_turn_dir)
+                        else: # moveToGreen
+                            # stop()
+                            go_straight()
+                            servo.setTarget(TWIST, twist_out)
+                            servo.setTarget(HEADTILT, 1510)
 
             elif not hasBall:
 
@@ -742,7 +772,7 @@ try:
                 elif gotoHuman:
                     print("Chase the human!!!!")
                     # The face has been lost too long, stop before people die
-                    if face_timer > doom_timer and not stopped:
+                    if face_timer >= doom_timer and not stopped:
                         print('Was chacing, but lost face for too long. Stop!')
                         # print('*************DONE!*********************')
                         stop()
@@ -762,7 +792,7 @@ try:
                             gotoHuman = False
                             repositioning = False
                             searching = False
-                        elif face[2]/width > .30:
+                        elif face[2]/width > .42:
                             print('Was chasing, but got a big face so stop!')
                             stop()
                             # print('*************DONE!*********************')
