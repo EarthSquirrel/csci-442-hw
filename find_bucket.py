@@ -165,12 +165,22 @@ def prepareImage(img):
 def get_center(cnt):
     x,y,w,h = cv.boundingRect(cnt)
     center = np.array([x+(w/2), y+(h/2)])
-    #print("CENTER: ", center)
     return center
+
+
+def get_rect_center(rect):
+    x,y,w,h = rect
+    return np.array([(x+(w/2)), (y+(h/2))])
+
 
 def find_contours(color, img):
     prep_img = prepareImage(img)
     hsv_img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+    hsv_img = prepareImage(hsv)
+    thresh = cv.inRange(hsv, green_ice_min, green_ice_max)
+    thresh = prepare_image(thresh)
+    edges = cv.Canny(thresh, 35, 150, L2gradient=True)
+    edges = cv.blur(edges, (7,7))
 
     if color == "green":
         min_hsv = green_ice_min
@@ -179,36 +189,9 @@ def find_contours(color, img):
     filtered_img = cv.inRange(hsv_img, min_hsv, max_hsv)
     edges = cv.Canny(filtered_img, 35, 150, L2gradient=True)
 
-
     contours, hierarchy = cv.findContours(edges, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
     contoursS = sorted(contours, key=lambda x: contourArea(x))
-    if len(contoursS) > 0:
-        cnt = contoursS[0]
-        cv.drawContours(img, [cnt], -1, (0,255,0), 3)
-    cx, cy = 0,0
-    for cnt in contoursS:
-        x,y,w,h = cv.boundingRect(cnt)
-        cv.rectangle(filtered_img, (x,y), (x+w,y+h), (0,0,255), 2)
-        #cv.rectangle(edge_copy, (x,y), (x+w,y+h), (0,255,0), 2)
 
-        M = cv.moments(cnt)
-        # print(M)
-        if M['m00'] == 0:
-            div_by =0.1
-        else:
-            div_by = M['m00']
-
-        cx = int(M['m10']/div_by)
-        cy = int(M['m01']/div_by)
-
-        #print('({}, {})'.format(cx, cy))
-        #print("CONTOUR AREA: ", contourArea(cnt))
-        break
-    if len(contoursS) > 0:
-        center = get_center(contoursS[0])
-    cv.drawContours(img, contoursS, -1, (0,0,255), 3)
-    #cv.imshow("filtered", filtered_img)
-    cv.imshow("original", img)
     return contoursS, len(contoursS)
 
 
@@ -247,10 +230,11 @@ try:
         y_mid = height / 2
         small_img = cv.resize(small_img, (width, int(height*0.6)))
         cv.imshow("Small Orig", small_img)
-        prepped_img = prepareImage(image)
-        hsv_img = cv.cvtColor(prepped_img, cv.COLOR_BGR2HSV)
+        hsv_img = cv.cvtColor(image, cv.COLOR_BGR2HSV)
+        hsv_img = prepareImage(image)
         filtered_img = cv.inRange(hsv_img, green_ice_min, green_ice_max)
         edges = cv.Canny(filtered_img, 35, 150, L2gradient=True)
+        edges = cv.blur(edges, (7,7))
         contours, cnt_count = find_contours("green", image)
 
 
@@ -259,7 +243,7 @@ try:
             raw_img = hsv_img.copy()
             resized = cv.resize(raw_img, (width, int(height*0.6)))
             small_conts, small_cnt_count = find_contours("green", resized)
-            bucket_center = get_center(small_conts[0])
+            bucket_center = get_rect_center(small_conts[0])
             print("BUCKET CENTER: ", bucket_center)
             print("SMALL CONTOUR COUNT: ", small_cnt_count)
             if bucket_center[1] < 260:
@@ -272,7 +256,7 @@ try:
             print("FOUND THE BUCKET! WILL NOW REPOSITION!")
             servo.setTarget(HEADTURN, headTurn)
             if cnt_count > 0:
-                bucket_center = get_center(contours[0])
+                bucket_center = get_rect_center(contours[0])
                 if bucket_center[0] > x_mid + 50:
                     reposition("right")
                 elif bucket_center[0] < x_mid - 50:
