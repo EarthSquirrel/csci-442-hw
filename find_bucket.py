@@ -19,8 +19,8 @@ servo = maestro.Controller()
 END_PROGRAM = False # use this to kill the threads
 increasing = False
 
-MOTORS = 1
-TURN = 2
+MOTORS = 2
+TURN = 1
 BODY = 0
 HEADTILT = 4
 HEADTURN = 3
@@ -176,9 +176,9 @@ def get_rect_center(rect):
 def find_contours(color, img):
     prep_img = prepareImage(img)
     hsv_img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
-    hsv_img = prepareImage(hsv)
-    thresh = cv.inRange(hsv, green_ice_min, green_ice_max)
-    thresh = prepare_image(thresh)
+    hsv_img = prepareImage(hsv_img)
+    thresh = cv.inRange(hsv_img, green_ice_min, green_ice_max)
+    thresh = prepareImage(thresh)
     edges = cv.Canny(thresh, 35, 150, L2gradient=True)
     edges = cv.blur(edges, (7,7))
 
@@ -243,20 +243,29 @@ try:
             raw_img = hsv_img.copy()
             resized = cv.resize(raw_img, (width, int(height*0.6)))
             small_conts, small_cnt_count = find_contours("green", resized)
-            bucket_center = get_rect_center(small_conts[0])
+            rect = cv.boundingRect(contours[0])
+            x,y,w,h = rect
+            cv.rectangle(resized, (x,y), (x+w, y+h),(0,0,255))
+            bucket_center = get_rect_center(rect)
             print("BUCKET CENTER: ", bucket_center)
             print("SMALL CONTOUR COUNT: ", small_cnt_count)
+            '''
             if bucket_center[1] < 260:
                 go_to_bucket = False
                 stop()
             else:
                 go_forward()
+            '''
+            go_forward()
         elif repositioning:
             # Reposition
             print("FOUND THE BUCKET! WILL NOW REPOSITION!")
             servo.setTarget(HEADTURN, headTurn)
             if cnt_count > 0:
-                bucket_center = get_rect_center(contours[0])
+                rect = cv.boundingRect(contours[0])
+                x,y,w,h = rect
+                cv.rectangle(image, (x,y), (x+w, y+h),(0,0,255))
+                bucket_center = get_rect_center(rect)
                 if bucket_center[0] > x_mid + 50:
                     reposition("right")
                 elif bucket_center[0] < x_mid - 50:
