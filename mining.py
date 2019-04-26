@@ -590,8 +590,8 @@ servo.setTarget(HEADTILT, 1510)
 threading.Timer(1, load_images_clock).start()
 # go_straight()
 # avoidance = True
-#start_field = False
-#mining = True
+start_field = False
+mining = True
 
 try:
 # capture frames from the camera
@@ -604,8 +604,10 @@ try:
         # on teh test paper
         yellow_min, yellow_max = (10, 180, 130), (30, 200, 150)
 
+        """
         # Change the state if crossed a line
         if not searching and check_crossed(image, yellow_min, yellow_max, 'yellow line') and not load_images:
+
             print('crossed a yellow line')
             if start_field:
                 start_field = False
@@ -638,7 +640,7 @@ try:
                 print('not in any state, there"s a problem with pink!')
 
             print('Start {}, avoid {} mine {}'.format(start_field, avoidance, mining))
-
+        """
 
         if start_field:
             servo.setTarget(HEADTILT, 1510)
