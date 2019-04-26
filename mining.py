@@ -2,15 +2,12 @@
 from picamera.array import PiRGBArray
 from picamera import PiCamera
 import time
-import datetime as dt
 import cv2 as cv
 import maestro
-import sys
 import threading
 from client import ClientSocket
 import numpy as np
 import traceback
-import logging
 
 
 
@@ -51,12 +48,10 @@ def get_contours(edges):
     contoursS.reverse()
     return contoursS
 
-def check_crossed(raw_img):
+def check_crossed(raw_img,  hsv_min, hsv_max, window_name='check crossed'):
     global old_cog_line
     raw_img = raw_img[int(height/3):height, int(width/5):int(4*width/5)] # int(width*.25):int(width*.75)]
 
-    # yellow
-    hsv_min, hsv_max = (0, 40, 90), (75, 250, 255)
 
     color_filter = get_hsv_filter(raw_img, hsv_min, hsv_max)
     # cv.imshow('hsv',color_filter) # hsv)
@@ -78,22 +73,24 @@ def check_crossed(raw_img):
     for cnt in contoursS:
         x,y,w,h = cv.boundingRect(cnt)
         cv.rectangle(thresh, (x,y), (x+w,y+h,), (0,255,0), 2)
-        if width*height < 10:
-            print('area is {} too small. No contours found.'.format(x*y))
+        #print(w*h)
+        if w > 0: # width/4:
             paused = True
-        M = cv.moments(cnt)
-        if M['m00'] == 0:
-            div_by =0.1
-        else:
-            div_by = M['m00']
+            M = cv.moments(cnt)
+            if M['m00'] == 0:
+                div_by =0.1
+            else:
+                div_by = M['m00']
 
-        cx = int(M['m10']/div_by)
-        cy = int(M['m01']/div_by)
-        break
+            cx = int(M['m10']/div_by)
+            cy = int(M['m01']/div_by)
+            break
+        else:
+            print('area is {} too small for {}. No contours found.'.format(w, width/2))
 
     cog = (cx, cy)
     cv.rectangle(thresh, (cx,cy), (cx+29, cy+20),(0,0,255), 2)
-    cv.imshow('contours', thresh)
+    cv.imshow(window_name, thresh)
 
     if old_cog_line[1]> 0 and cog[1] == -1:
         # moving forward towards line
@@ -131,7 +128,18 @@ def time_the_faces():
     global face_timer
     face_timer += 1
     print('\t\tface_timer: ', face_timer)
-    threading.Timer(1,time_the_faces).start()
+    if mining and not gettingIce:
+        threading.Timer(1,time_the_faces).start()
+
+def load_images_clock():
+    global load_images_timer, load_images
+    load_images_timer += 1
+    # print('\t\tload_images_timer ', load_images_timer)
+    if load_images_timer < 6:
+        threading.Timer(1, load_images_clock).start()
+    else:
+        load_images = False
+        ##go_straight()
 
 def get_turn_dir():
     global turn_dir
@@ -142,23 +150,24 @@ def get_turn_dir():
         print("Turn dir = right")
         turn_dir = "right"
     # elif (head_pos > 6000 and face_loc > width/2) or (head_pos < 6000 and face_loc > width/2):
-    if head_pos < 5000:
+    if head_pos < 6000:
         print("Turn dir = left")
         turn_dir = 'left'
 
 
-def stop_face_size(width, faces):
+def stop_face_center(width, faces):
+    global repositioning, gotoHuman
     face_center = faces[0][0] + 0.5*faces[0][2]
     if abs(face_center - width/2) < width/5:
         print('Face in center, stoping things')
-        turn = 6000
-        servo.setTarget(TURN, turn)
+        pause()
         repositioning = False
         gotoHuman = True
-
+        face_timer = 0
 
 def reposition(turn_dir):
     global turn
+    motors = 6000
     if turn_dir == 'left':
         print('\treposition to the left')
         # turn -= 200
@@ -172,12 +181,20 @@ def reposition(turn_dir):
         if turn > max_turn:
             turn = max_turn
     else:
-        print('Going streight')
+        print('Problem!')
         # print('\tYa, something broke....')
+        #motors = max_move - 200
+        #servo.setTarget(MOTORS, motors)
+        #time.sleep(0.15)
+        #motors = max_move +200
+
     servo.setTarget(TURN, turn)
+    # servo.setTarget(MOTORS, motors)
     time.sleep(0.25)
     # print('\trepositioning turn value: ' + str(servo.getPosition(TURN)))
     turn = 6000
+    motors = 6000
+    servo.setTarget(MOTORS, motors)
     servo.setTarget(TURN, turn)
     time.sleep(.5)
 
@@ -204,8 +221,85 @@ def faces_found(frame):
     return real_faces
 
 
+def cnts_ice_timer():
+    global counting_ice_cnts_timer
+    counting_ice_cnts_timer += 1
+    print('\t\tContours ice timer: {}'.format(counting_ice_cnts_timer))
+    if counting_ice_cnts:
+        threading.Timer(1,cnts_ice_timer).start()
+
+def detect_ice(raw_img):
+    global counting_ice_cnts, counting_ice_cnts_timer, hasBall, rejectedPink
+    width, height, channel = raw_img.shape
+    width_array = len(raw_img[0])
+    raw_img = raw_img[int(height/6):int(2*height/3)-20,int(width_array/2)+100:width_array-50]#int(width/3):width] # int(width*.25):int(width*.75)]
+
+
+    hsv_min, hsv_max = (40, 200, 200), (50, 240, 240)
+    ice_filter = get_hsv_filter(raw_img, hsv_min, hsv_max)
+    # cv.imshow("ice", ice_filter)
+
+    # cv.imshow('hsv',color_filter) # hsv)
+
+    edges = cv.Canny(ice_filter, 35, 150, L2gradient=True)
+    kernel = np.ones((10,10), np.uint8)
+    dil_edges = cv.dilate(edges, kernel, iterations=1)
+    ice_cnts = get_contours(dil_edges)
+
+    if counting_ice_cnts:
+        if counting_ice_cnts_timer > 2:
+            counting_ice_cnts = False
+            print('GRAB THE ICE!!!')
+            servo.setTarget(HAND, closed_hand)
+            hasBall = True
+    elif len(ice_cnts) > 0 and not hasBall:
+        speak = ['I will take that']
+        print(speak)
+        if talking:
+            talk(speak)
+
+        counting_ice_cnts = True
+        counting_ice_cnts_timer = 0
+        threading.Timer(1, cnts_ice_timer).start()
+
+    thresh = raw_img.copy()
+    for cnt in ice_cnts:
+        x,y,w,h = cv.boundingRect(cnt)
+        cv.rectangle(thresh, (x,y), (x+w,y+h,), (0,0,255), 2)
+
+    # these are pink colors
+    hsv_min, hsv_max = (150, 100, 230), (170, 140, 255)
+    pink_filter = get_hsv_filter(raw_img, hsv_min, hsv_max)
+
+    edges = cv.Canny(pink_filter, 35, 150, L2gradient=True)
+    kernel = np.ones((10,10), np.uint8)
+    dil_edges = cv.dilate(edges, kernel, iterations=1)
+    green_cnts = get_contours(dil_edges)
+    if len(green_cnts) > 0 and not rejectedPink:
+        speak = ['Not the pink, green ice please']
+        print(speak)
+        if talking:
+            talk(speak)
+
+        rejectedPink = True
+    for cnt in green_cnts:
+        x,y,w,h = cv.boundingRect(cnt)
+        cv.rectangle(thresh, (x,y), (x+w,y+h,), (255, 0,0), 2)
+    cv.imshow('ice seen', thresh)
+
+
+def arm_down():
+    # set arm so don't have to deal with it later
+    servo.setTarget(ARM, lower_arm)
+    servo.setTarget(HAND, open_hand)
+    servo.setTarget(ELBOW, elbow_straight)
+    servo.setTarget(TWIST, twist_out)
+    servo.setTarget(WRIST, wrist)
+
+
+
 def stop():
-    print('in stop: stopping motors')
+    # print('in stop: stopping motors')
     global motors, turn, body, headTurn, headTilt
     motors = 6000
     turn = 6000
@@ -220,7 +314,7 @@ def stop():
     servo.setTarget(BODY, body)
 
 def pause():
-    print('in stop: stopping motors')
+    # print('in stop: stopping motors')
     global motors, turn, body, headTurn, headTilt
     motors = 6000
     turn = 6000
@@ -239,6 +333,7 @@ def go_straight():
 
 def search():
     global increasing, headTurn, headTilt, tilt_loc, searching
+    pause()
     if END_PROGRAM:
         stop()
         return
@@ -269,6 +364,19 @@ def search():
     else: # no longer searching if found a face
         searching = False
 
+def search_turn():
+    turn = max_turn
+    servo.setTarget(TURN, turn)
+    time.sleep(.25)
+    turn = 6000
+    motors = 6000
+    servo.setTarget(MOTORS, motors)
+    servo.setTarget(TURN, turn)
+    time.sleep(.25)
+    if searchingTurn:
+        threading.Timer(.01, search_turn).start()
+
+
 # greater than 6000
 def turn_left(weight):
 # def turn_right():
@@ -298,14 +406,11 @@ def turn_right(weight):
         turn = min_turn
     servo.setTarget(TURN, turn)
 def talk(say_this):
-    PORT = 5010
-    client = ClientSocket(IP, PORT)
     ##client.start()
     for i in say_this:
         client.sendData(i)
         print('\tspeaking: ', i)
         time.sleep(1)
-    client.killSocket()
 
 
 
@@ -325,8 +430,12 @@ BODY = 0
 HEADTILT = 4
 HEADTURN = 3
 ARM = 6
-HAND = 11
-TWISTARM = 7
+HAND = 10
+ELBOW = 8
+TWIST = 7
+WRIST = 11
+
+
 
 motors = 6000
 turn = 6000
@@ -334,7 +443,6 @@ body = 6000
 headTurn = 6000
 headTilt = 6000
 
-move_arms = False
 max_move = 5400  # 5400
 max_turn = 7200  # left
 min_turn = 4800  # right
@@ -342,12 +450,21 @@ max_head_turn = 7500 # max 7900
 min_head_turn = 4000 # min 1510
 min_head_tilt = 1510
 max_time = 5
-min_arm = 0
-max_arm = 200
-min_hand = -50
-max_hand = 50
-twistarm_inward = -150
-twistarm_normal = 150  # outward in this case!!! -_-
+
+open_hand = 4000
+closed_hand = 5600
+raised_arm = 8000
+lower_arm = 4000
+elbow_straight = 6000
+twist_in = 5000
+twist_out = 6000
+wrist = 6000
+
+# set arm so don't have to deal with it later
+servo.setTarget(ARM, raised_arm)
+servo.setTarget(HAND, open_hand)
+servo.setTarget(TWIST, twist_in)
+servo.setTarget(WRIST, wrist)
 
 
 # In the hall
@@ -356,11 +473,15 @@ twistarm_normal = 150  # outward in this case!!! -_-
 #min_turn = 5000
 
 # IP address for talking
-IP = '10.200.22.237'
+IP = '10.200.23.235'
 
 ##################################################3##
 ############## Boolean values #######################
 #####################################################
+talking = False
+if talking:
+    PORT = 5010
+    client = ClientSocket(IP, PORT)
 
 # states
 start_field = True
@@ -370,9 +491,10 @@ changedState = False
 
 # global accross all states
 hasBall = False
-time_to_cross_line = 3
+load_images = True
+load_images_timer = 0
 
-# start_filed bools
+# start_field bools
 droppedBall = False
 old_cog_line = (float('inf'), float('inf'))
 
@@ -388,6 +510,14 @@ turn_dir = 'boom'
 move_wait_time = 1.0  # time to wait before moving to new position head
 face_timer = 0
 doom_timer = 3 # how long to wait when losing a face before stopping
+counting_ice_cnts = False  # checks if has seen the ice or not
+counting_ice_cnts_timer = 0  # must see the ice for certian amount of tiime, thne close hand
+rejectedPink = False
+askedForIce = False
+gettingIce = False
+searchingTurn = False
+
+#
 
 # other
 END_PROGRAM = False
@@ -400,44 +530,70 @@ bool_vals = {'start_field': start_field, 'avoidance': avoidance, 'mining': minin
 # allow the camera to warmup
 time.sleep(0.1)
 
-headTilt = 4000
+# headTilt = 4000
 servo.setTarget(HEADTILT, headTilt)
+servo.setTarget(HEADTILT, 1510)
+threading.Timer(1, load_images_clock).start()
 # go_straight()
-#avoidance = True
+# avoidance = True
 #start_field = False
+#mining = True
 
 try:
 # capture frames from the camera
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         image = frame.array
         width, height, channel = image.shape
+        # yellow
+        yellow_min, yellow_max = (0, 40, 90), (75, 250, 255)
+        yellow_min, yellow_max = (10, 100, 240), (30, 120, 255)
+        # on teh test paper
+        yellow_min, yellow_max = (10, 180, 130), (30, 200, 150)
 
         # Change the state if crossed a line
-        if not searching and check_crossed(image):
-            changedState = True
-            # TODO: Check this logic works on the field
+        if not searching and check_crossed(image, yellow_min, yellow_max, 'yellow line') and not load_images:
+            print('crossed a yellow line')
             if start_field:
                 start_field = False
                 avoidance = True
+                changedState = True
             elif avoidance:
                 avoidance = False
-                mining=True
-                # shoot me please
-                pass
-            elif mining:
-                #mining = False
-                #avoidance = True
-                pass
+                start_field=True
+                changedState = True
             else:
-                print('not in any state, there"s a problem!')
+                print('not in any state, there"s a problem with yellow!')
+            print('Start {}, avoid {} mine {}'.format(start_field, avoidance, mining))
+
+        pink_min, pink_max = (164, 65, 252), (166, 75, 255)
+        pink_min, pink_max = (155, 30, 250), (166, 40, 255)
+        # ON the papers
+        # pink_min, pink_max = (155, 115, 170), (179, 150, 199)
+
+        if not searching and check_crossed(image, pink_min, pink_max, 'pink line') and not load_images:
+            print('Crossed a pink line')
+            if avoidance:
+                avoidance = False
+                mining = True
+                changedState = True
+            elif mining:
+                mining = False
+                avoidance = True
+                changedState = True
+            else:
+                print('not in any state, there"s a problem with pink!')
+
+            print('Start {}, avoid {} mine {}'.format(start_field, avoidance, mining))
+
 
         if start_field:
+            servo.setTarget(HEADTILT, 1510)
             if changedState:
                 # headTilt = min_head_tilt
-                servo.setTarget(HEADTILT, headTilt)
                 # talk
-                speaking = ['Crossed into starting field']
-                # talk(speaking)
+                speaking = ['Crossed into starting field', 'boing boing']
+                if talking:
+                    talk(speaking)
                 print(speaking)
                 changedState = False
 
@@ -451,8 +607,9 @@ try:
         elif avoidance:
             if changedState:
                 # talk
-                speaking = ['Crossed into avoidance']
-                # talk(speaking)
+                speaking = ["Vroom vroom. Let's run stuff over!"]
+                if talking:
+                    talk(speaking)
                 print(speaking)
                 changedState = False
 
@@ -470,76 +627,84 @@ try:
             if changedState:
                 sawHuman = False
                 # talk
-                speaking = ['Crossed into mining']
-                # talk(speaking)
+                speaking = ['Time to collect some ice']
+                if talking:
+                    talk(speaking)
                 print(speaking)
                 changedState = False
                 stop()
                 headTilt = 6000
                 servo.setTarget(HEADTILT, headTilt)
-                if move_arms:
-                    servo.setTarget(HAND, max_hand)
-                    servo.setTarget(ARM, max_arm)
-                    servo.setTarget(TWISTARM, twistarm_inward)
 
             if hasBall:
+                # TODO: Start turning in small incriments and look for the
+                # green box
+                if not searchingTurn:
+                    servo.setTarget(HEADTILT, 6000)
+                    # search_turn()
+                    searchingTurn = True
+                    print('starting to spin and search for green')
                 pass
 
             elif not hasBall:
 
-                faces = faces_found(image)
 
-                if stopped and len(faces) == 0:
-                    # needs to wait seven seconds before searching again
-                    print('Lost the face, now I will wait 7 seconds...')
-                    time.sleep(7)
-                    stopped = False
-                    sawHuman = False
+                if gettingIce:
+                    servo.setTarget(HEADTILT, 1510)
+                    detect_ice(image)
+                else:
+                    faces = faces_found(image)
+
+                if gettingIce:
+                    pass
+                elif stopped and not askedForIce:
+                    speak = ['I need the ice please']
+                    print(speak)
+                    if talking:
+                        talk(speak)
+                        time.sleep(1)
+                    askedForIce = True
                     repositioning = False
                     gotoHuman = False
-                # TODO: What happens with stop down here?
+                    gettingIce = True
+                elif stopped: # and len(faces) == 0:
+                    detect_ice(image)
+                    repositioning = False
+                    gotoHuman = False
                 elif gotoHuman:
                     print("Chase the human!!!!")
                     # The face has been lost too long, stop before people die
                     if face_timer > doom_timer and not stopped:
                         print('Was chacing, but lost face for too long. Stop!')
-                        print('*************DONE!*********************')
+                        # print('*************DONE!*********************')
                         stop()
-                        sawHuman = False
+                        # sawHuman = False
                         gotoHuman = False
                         repositioning = False
                         searching = False
                         stopped = True
                     elif len(faces) > 0:
+                        face_timer = 0
                         face = faces[0]
                         print('Face {} of screen'.format(str(face[2]/width*100)))
                         # stop if width face is too much
                         if stopped:
-                            if face_timer > 7:
-                                sawHuman = False
-                                gotoHuman = False
-                                repositioning = False
-                                searching = False
-                                stopped = False
-                        elif face[2]/width > .17:
+                            detect_ice(image)
+                            sawHuman = True
+                            gotoHuman = False
+                            repositioning = False
+                            searching = False
+                        elif face[2]/width > .30:
                             print('Was chasing, but got a big face so stop!')
                             stop()
-                            print('*************DONE!*********************')
+                            # print('*************DONE!*********************')
                             stopped = True
                         else:
                             go_straight()
                     elif stopped:
-                        # TODO: Put code ot get ice here
-                        # get_ice(image)
-                        pass
-                        """
-                        if face_timer > 7:
-                            sawHuman= False
-                            gotoHuman = False
-                            repositioning = False
-                            searching = True
-                            stopped = False
-                        """
+                        # detect_ice(image)
+                        gettingIce = True
+                        print('Does the program even reach this stopped option?')
 
                     else:
                         go_straight()
@@ -552,7 +717,7 @@ try:
                     if len(faces) > 0:
                         face_timer = 0
                         print('found a face!')
-                        stop_face_size(width, faces)
+                        stop_face_center(width, faces)
 
                 # the first time the face found
                 elif len(faces) > 0 and not sawHuman:
@@ -562,12 +727,13 @@ try:
                     # threading.Timer(1, time_reposition).start()
                     sawHuman = True
                     threading.Timer(0, talk).start()
-                    turn_dir = get_turn_dir()
+                    get_turn_dir()
                     headTilt, headTurn = 6000, 6000
                     servo.setTarget(HEADTURN, headTurn)
                     servo.setTarget(HEADTILT, headTilt)
                     reposition(turn_dir)
                     face_timer = 0
+                    threading.Timer(1, time_the_faces).start()
                     # cv.imwrite('frame' + str(frame_itter) + '.png', image)
 
                 # The face has been found before
@@ -605,57 +771,6 @@ try:
                 cv.imshow("faces", image)
 
 
-                """
-                # almost whole area needs access to faces array
-                faces = faces_found(image)
-
-                if not sawHuman:
-                    # if searching hasn't started, start
-                    if not searching:
-                        stop()
-                        searching = True
-                        headTilt = 6000
-                        servo.setTarget(HEADTILT, headTilt)
-                        threading.Timer(move_wait_time, search).start()
-                    elif searching:
-                        search_for_face(image, faces)
-
-                elif sawHuman:
-                    # get the ball
-                    # bools here, gotoHuman, repositioning
-                    # Stop searching if found the humna
-
-                    if searching:
-                        # saw human, stop searching, start repositioning
-                        print('sawHuman, searching')
-                        searching = False
-                        repositioning = True
-                        headTurn = 6000
-                        servo.setTarget(headTurn, HEADTURN)
-
-                    if len(faces) > 0:
-                        if repositioning:
-                            print('>0, sawHuman, repositioning')
-                            # move until finds the human
-                            reposition(turn_dir, image)
-
-                        elif gotoHuman:
-                            print('>0, sawHuman, gotoHuman')
-                            # move to the human
-                    else:  # doesn't see a face on screen
-                        if repositioning:
-                            reposition(turn_dir, image)
-                            print("Hopefully I don't go in a circle")
-                        elif gotoHuman:
-                            # check the timer
-                            pass
-
-                    if getBall:
-                        print('sawHuman, getBall')
-
-
-                    chase_human(image)
-        """
         else:
             print('Error: not a valid state!')
         key = cv.waitKey(1) & 0xFF
@@ -676,6 +791,7 @@ try:
 except KeyboardInterrupt:
     print('Manually stopped')
     END_PROGRAM = True
+    arm_down()
     stop()
 
 except Exception as e: # catch *all* exceptions
@@ -683,7 +799,11 @@ except Exception as e: # catch *all* exceptions
     END_PROGRAM = True
     print(traceback.print_tb(e.__traceback__))
     print('Stopped motors due to an error')
+    arm_down()
+
 except:
     print('Something didn"t catch....')
     END_PROGRAM = True
+    print(traceback.print_tb(e.__traceback__))
     stop()
+    arm_down()

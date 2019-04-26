@@ -25,10 +25,10 @@ class ClientSocket(threading.Thread):
                 pass
 
     def sendData(self, sendingString):
-        print ('sending')
+        #print ('sending')
         sendingString += "\n"
         self.s.send(sendingString.encode('UTF-8'))
-        print ('done sending')
+        #print ('done sending')
 
     def run(self):
         global globalVar
@@ -48,8 +48,26 @@ class ClientSocket(threading.Thread):
         exit()
 
 """
-IP = '10.200.22.237'
-IP = str(sys.argv[1])
+IP = '10.200.23.235'
+#IP = str(sys.argv[1])
+PORT = 5010
+client = ClientSocket(IP, PORT)
+##client.start()
+say_this = ['hi', 'speak']
+for i in say_this:
+    client.sendData(i)
+    print('\tspeaking: ', i)
+    time.sleep(1)
+
+##client.start()
+say_this = ['hello', 'speak']
+for i in say_this:
+    client.sendData(i)
+    print('\tspeaking: ', i)
+    time.sleep(1)
+client.killSocket()
+
+
 PORT = 5010
 client = ClientSocket(IP, PORT)
 ##client.start()
