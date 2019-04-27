@@ -21,6 +21,7 @@ camera = PiCamera()
 camera.resolution = (640, 480)
 camera.framerate = 10
 rawCapture = PiRGBArray(camera, size=(640, 480))
+camera.start_preview()
 face_cascade = cv.CascadeClassifier('haarcascade_frontalface_default.xml')
 eye_cascade = cv.CascadeClassifier('haarcascade_eye.xml')
 # face_cascade = cv.CascadeClassifier('lbpcascade_frontalface_improved.xml')
@@ -361,10 +362,12 @@ def search():
             """
     # print("\t\t\tSearching: Head Pos: ", headTurn)
     servo.setTarget(HEADTURN, headTurn)
-    servo.setTarget(HEADTILT, headTilt)
+    #servo.setTarget(HEADTILT, headTilt)
 
     if not sawHuman and searching:
        threading.Timer(move_wait_time, search).start()
+    elif not blob_found and searching:
+        threading.Timer(1.0, search).start()
     else: # no longer searching if found a face
         searching = False
 
@@ -479,6 +482,47 @@ def talk(say_this):
         print('\tspeaking: ', i)
         time.sleep(1)
 
+def prepareImage(img):
+    kernel = np.ones((10,10), np.uint8)
+    blur = cv.blur(img,(7,7))
+    erosion = cv.erode(blur, kernel, iterations=4)
+    dilation = cv.dilate(erosion, kernel, iterations=2)
+    return dilation
+
+
+def contourArea(cnt):
+   x,y,w,h = cv.boundingRect(cnt)
+   return w*h
+
+
+def find_contours(color, img):
+    prep_img = prepareImage(img)
+    hsv_img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+    hsv_img = prepareImage(hsv_img)
+    thresh = cv.inRange(hsv_img, green_ice_min, green_ice_max)
+    thresh = prepareImage(thresh)
+    edges = cv.Canny(thresh, 35, 150, L2gradient=True)
+    edges = cv.blur(edges, (7,7))
+
+    if color == "green":
+        min_hsv = green_ice_min
+        max_hsv = green_ice_max
+
+    filtered_img = cv.inRange(hsv_img, min_hsv, max_hsv)
+    edges = cv.Canny(filtered_img, 35, 150, L2gradient=True)
+
+    contours, hierarchy = cv.findContours(edges, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
+    contoursS = sorted(contours, key=lambda x: contourArea(x))
+
+    return contoursS, len(contoursS)
+
+
+def get_rect_center(rect):
+    x,y,w,h = rect
+    return np.array([(x+(w/2)), (y+(h/2))])
+
+
+
 
 
 #############################################################################
@@ -563,6 +607,7 @@ load_images_timer = 0
 # start_field bools
 droppedBall = False
 old_cog_line = (float('inf'), float('inf'))
+go_to_bucket = False
 
 # mining bools
 sawHuman = False
@@ -597,7 +642,11 @@ bool_vals = {'start_field': start_field, 'avoidance': avoidance, 'mining': minin
 
 # allow the camera to warmup
 time.sleep(0.1)
-green_ice_min, green_ice_max = (40, 200, 200), (50, 240, 240)
+camera.stop_preview()
+green_ice_min = np.array([20, 160, 120])
+green_ice_max = np.array([75, 225, 190])
+
+#green_ice_min, green_ice_max = (40, 200, 200), (50, 240, 240)
 green_min, green_max = (20, 160, 120), (75, 225, 190)
 pink_ice_min, pink_ice_max = (150, 100, 230), (170, 140, 255)
 
@@ -614,15 +663,23 @@ servo.setTarget(HEADTILT, 1510)
 threading.Timer(1, load_images_clock).start()
 # go_straight()
 # avoidance = True
-start_field = False
-mining = True
-# hasBall= True
+start_field = True
+#start_field = False
+mining = False
+hasBall= True
+changedState = True
+blob_found = False
 
+#searching = True
+#search()
+
+print('Starting the program')
 try:
 # capture frames from the camera
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         image = frame.array
-        width, height, channel = image.shape
+        height, width, channel = image.shape
+
         # yellow
 
         """
@@ -664,7 +721,20 @@ try:
         """
 
         if start_field:
+            small_img = image.copy()
+            small_img = cv.resize(small_img, (width, int(height*0.6)))
+            x_mid = width / 2
+            y_mid = height / 2
+            #cv.imshow("Small Orig", small_img)
+            hsv_img = cv.cvtColor(image, cv.COLOR_BGR2HSV)
+            hsv_img = prepareImage(image)
+            filtered_img = cv.inRange(hsv_img, green_ice_min, green_ice_max)
+            edges = cv.Canny(filtered_img, 35, 150, L2gradient=True)
+            edges = cv.blur(edges, (7,7))
+            contours, cnt_count = find_contours("green", image)
             servo.setTarget(HEADTILT, 1510)
+            cv.imshow("Image", image)
+
             if changedState:
                 # headTilt = min_head_tilt
                 # talk
@@ -673,10 +743,62 @@ try:
                     talk(speaking)
                 print(speaking)
                 changedState = False
+                searching = True
+                search()
 
             if hasBall:
                 # drop the ball in the cup
-                pass
+                if go_to_bucket:
+                    print("Going to bucket!")
+                    raw_img = hsv_img.copy()
+                    resized = cv.resize(raw_img, (width, int(height*0.6)))
+                    small_conts, small_cnt_count = find_contours("green", resized)
+                    rect = cv.boundingRect(contours[0])
+                    x,y,w,h = rect
+                    cv.rectangle(resized, (x,y), (x+w, y+h),(0,0,255))
+                    bucket_center = get_rect_center(rect)
+                    print("BUCKET CENTER: ", bucket_center)
+                    print("SMALL CONTOUR COUNT: ", small_cnt_count)
+                    '''
+                    if bucket_center[1] < 260:
+                        go_to_bucket = False
+                        stop()
+                    else:
+                        go_forward()
+                    '''
+                    go_straight()
+                elif repositioning:
+                    # Reposition
+                    print("FOUND THE BUCKET! WILL NOW REPOSITION!")
+                    searching = False
+                    servo.setTarget(HEADTURN, 6000)
+                    if cnt_count > 0:
+                        rect = cv.boundingRect(contours[0])
+                        x,y,w,h = rect
+                        cv.rectangle(image, (x,y), (x+w, y+h),(0,0,255))
+                        bucket_center = get_rect_center(rect)
+                        if bucket_center[0] > x_mid + 50:
+                            print("reposition left")
+                            reposition("left")
+                        elif bucket_center[0] < x_mid - 50:
+                            print("reposition right")
+                            reposition("right")
+                        elif bucket_center[0] >= x_mid - 50 and bucket_center[0] <= x_mid + 50:
+                            print("GOING TO BUCKET")
+                            repositioning = False
+                            go_to_bucket = True
+                    else:
+                        repositioning = False
+                        searching = True
+
+                elif cnt_count > 0:
+                    print("Found the bucket!")
+                    blob_found = True
+                    repositioning = True
+                else:
+                    blob_found = False
+                    go_to_bucket = False
+
             elif not hasBall:
                 # go to avoidance to get the ball
                 pass
