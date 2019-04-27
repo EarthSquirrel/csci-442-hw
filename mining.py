@@ -239,8 +239,7 @@ def detect_ice(raw_img):
     raw_img = raw_img[int(height/6):int(2*height/3)-20,int(width_array/2)+100:width_array-50]#int(width/3):width] # int(width*.25):int(width*.75)]
 
 
-    hsv_min, hsv_max = (40, 200, 200), (50, 240, 240)
-    ice_filter = get_hsv_filter(raw_img, hsv_min, hsv_max)
+    ice_filter = get_hsv_filter(raw_img, green_ice_min, green_ice_max)
     # cv.imshow("ice", ice_filter)
 
     # cv.imshow('hsv',color_filter) # hsv)
@@ -272,8 +271,8 @@ def detect_ice(raw_img):
         cv.rectangle(thresh, (x,y), (x+w,y+h,), (0,0,255), 2)
 
     # these are pink colors
-    hsv_min, hsv_max = (150, 100, 230), (170, 140, 255)
-    pink_filter = get_hsv_filter(raw_img, hsv_min, hsv_max)
+    # pink_ice_min, pink_ice_max = (150, 100, 230), (170, 140, 255)
+    pink_filter = get_hsv_filter(raw_img, pink_ice_min, pink_ice_max)
 
     edges = cv.Canny(pink_filter, 35, 150, L2gradient=True)
     kernel = np.ones((10,10), np.uint8)
@@ -598,6 +597,16 @@ bool_vals = {'start_field': start_field, 'avoidance': avoidance, 'mining': minin
 
 # allow the camera to warmup
 time.sleep(0.1)
+green_ice_min, green_ice_max = (40, 200, 200), (50, 240, 240)
+green_min, green_max = (20, 160, 120), (75, 225, 190)
+pink_ice_min, pink_ice_max = (150, 100, 230), (170, 140, 255)
+
+yellow_min, yellow_max = (0, 40, 90), (75, 250, 255)
+yellow_min, yellow_max = (10, 100, 240), (30, 120, 255)
+# on teh test paper
+yellow_min, yellow_max = (10, 180, 130), (30, 200, 150)
+pink_line_min, pink_line_max = (164, 65, 252), (166, 75, 255)
+pink_line_min, pink_line_max = (155, 30, 250), (166, 40, 255)
 
 # headTilt = 4000
 servo.setTarget(HEADTILT, headTilt)
@@ -615,10 +624,6 @@ try:
         image = frame.array
         width, height, channel = image.shape
         # yellow
-        yellow_min, yellow_max = (0, 40, 90), (75, 250, 255)
-        yellow_min, yellow_max = (10, 100, 240), (30, 120, 255)
-        # on teh test paper
-        yellow_min, yellow_max = (10, 180, 130), (30, 200, 150)
 
         """
         # Change the state if crossed a line
@@ -636,13 +641,13 @@ try:
             else:
                 print('not in any state, there"s a problem with yellow!')
             print('Start {}, avoid {} mine {}'.format(start_field, avoidance, mining))
-
-        pink_min, pink_max = (164, 65, 252), (166, 75, 255)
-        pink_min, pink_max = (155, 30, 250), (166, 40, 255)
+        '''
+        pink_line_min, pink_line_max = (164, 65, 252), (166, 75, 255)
+        pink_line_min, pink_line_max = (155, 30, 250), (166, 40, 255)
         # ON the papers
-        # pink_min, pink_max = (155, 115, 170), (179, 150, 199)
-
-        if not searching and check_crossed(image, pink_min, pink_max, 'pink line') and not load_images:
+        # pink_line_min, pink_line_max = (155, 115, 170), (179, 150, 199)
+        '''
+        if not searching and check_crossed(image, pink_line_min, pink_line_max, 'pink line') and not load_images:
             print('Crossed a pink line')
             if avoidance:
                 avoidance = False
@@ -717,11 +722,10 @@ try:
                     print('starting to spin and search for green')
                 else:
                     # locate the green box while searching
-                    green_min, green_max = (20, 160, 120), (75, 225, 190)
+                    # green_min, green_max = (20, 160, 120), (75, 225, 190)
                     if not locatedGreenBox:
-                        print('detecting green box!')
+                        # print('detecting green box!')
                         if detect_green_box(image, green_min, green_max):
-                            # searchingTurn = False
                             locatedGreenBox = True
                             searchingTurn = False
                     else:  # locatedGreenBox
@@ -739,10 +743,7 @@ try:
                             else: # left or right
                                 reposition(green_turn_dir)
                         else: # moveToGreen
-                            # stop()
                             go_straight()
-                            servo.setTarget(TWIST, twist_out)
-                            servo.setTarget(HEADTILT, 1510)
 
             elif not hasBall:
 
