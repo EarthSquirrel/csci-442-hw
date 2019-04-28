@@ -111,17 +111,17 @@ def check_crossed(raw_img,  hsv_min, hsv_max, window_name='check crossed'):
     cv.rectangle(thresh, (cx,cy), (cx+29, cy+20),(0,0,255), 2)
     cv.imshow(window_name, thresh)
 
-    if window_name == 'pink_line':
+    if window_name == 'pink line':
         old_cog_line = pink_cog_line
     else:
         old_cog_line = yellow_cog_line
 
     print(old_cog_line, ' ' , window_name)
-    #if old_cog_line[1][1]> 0 and cog[1] == -1 and old_cog_line[0][1] == -1:
-    if old_cog_line[1]> 0 and cog[1] == -1:
+    if old_cog_line[1][1]> 0 and cog[1] == -1 and old_cog_line[0][1] == -1:
+    #if old_cog_line[1]> 0 and cog[1] == -1:
         # moving forward towards line
         # print('True old: {} new: {}'.format(old_cog_line, cog))
-        if window_name == 'pink_line':
+        if window_name == 'pink line':
             pink_cog_line [1] = old_cog_line[0]
             pink_cog_line[0] = cog
             #pink_cog_line = cog
@@ -132,7 +132,7 @@ def check_crossed(raw_img,  hsv_min, hsv_max, window_name='check crossed'):
 
         return True
     else:
-        if window_name == 'pink_line':
+        if window_name == 'pink line':
             pink_cog_line [1] = old_cog_line[0]
             pink_cog_line[0] = cog
             #pink_cog_line = cog
