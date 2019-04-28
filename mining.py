@@ -57,14 +57,27 @@ def check_crossed(raw_img,  hsv_min, hsv_max, window_name='check crossed'):
     global old_cog_line
     raw_img = raw_img[int(height/3):height, int(width/5):int(4*width/5)] # int(width*.25):int(width*.75)]
 
+    blur = cv.blur(raw_img,(5,5))
+    # cv.imshow('raw_img', raw_img)
+    kernel = np.ones((10,10), np.uint8)
 
-    color_filter = get_hsv_filter(raw_img, hsv_min, hsv_max)
+    img_erosion = cv.erode(blur, kernel, iterations=2)
+    img_dilation = cv.dilate(img_erosion, kernel, iterations=3)
+    # color filtering stuff, save for later
+    hsv = cv.cvtColor(img_dilation, cv.COLOR_BGR2HSV)
+
+    # robot lab settings
+    color_filter = cv.inRange(hsv, hsv_min, hsv_max)
+
+    #color_filter = get_hsv_filter(raw_img, hsv_min, hsv_max)
     # cv.imshow('hsv',color_filter) # hsv)
 
     edges = cv.Canny(color_filter, 35, 150, L2gradient=True)
     kernel = np.ones((10,10), np.uint8)
-    dil_edges = cv.dilate(edges, kernel, iterations=1)
+    dil_edges = cv.dilate(edges, kernel, iterations=3)
     # cv.imshow('edges', dil_edges)
+    edge_name = window_name + '-edges'
+    cv.imshow(edge_name, dil_edges)
 
     thresh = raw_img.copy()
 
@@ -144,7 +157,7 @@ def load_images_clock():
         threading.Timer(1, load_images_clock).start()
     else:
         load_images = False
-        ##go_straight()
+        go_straight()
 
 def get_turn_dir():
     global turn_dir
@@ -663,12 +676,12 @@ servo.setTarget(HEADTILT, 1510)
 threading.Timer(1, load_images_clock).start()
 # go_straight()
 # avoidance = True
-start_field = True
+#start_field = True
 #start_field = False
-mining = False
-hasBall= True
-changedState = True
-blob_found = False
+#mining = False
+#hasBall= True
+#changedState = True
+#blob_found = False
 
 #searching = True
 #search()
@@ -682,7 +695,6 @@ try:
 
         # yellow
 
-        """
         # Change the state if crossed a line
         if not searching and check_crossed(image, yellow_min, yellow_max, 'yellow line') and not load_images:
 
@@ -718,7 +730,6 @@ try:
                 print('not in any state, there"s a problem with pink!')
 
             print('Start {}, avoid {} mine {}'.format(start_field, avoidance, mining))
-        """
 
         if start_field:
             small_img = image.copy()
@@ -733,7 +744,6 @@ try:
             edges = cv.blur(edges, (7,7))
             contours, cnt_count = find_contours("green", image)
             servo.setTarget(HEADTILT, 1510)
-            cv.imshow("Image", image)
 
             if changedState:
                 # headTilt = min_head_tilt
