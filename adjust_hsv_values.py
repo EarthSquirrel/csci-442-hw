@@ -11,6 +11,8 @@ camera.framerate = 10
 rawCapture = PiRGBArray(camera, size=(640,480))
 servo = maestro.Controller()
 
+HEADTILT = 4
+
 
 max_move = 5200  # 5400
 max_turn = 7200  # left
@@ -30,18 +32,33 @@ pink_min = np.array([164, 65, 252])
 pink_max = np.array([166, 75, 255])
 
 yellow_min = np.array([20, 110, 235])
-yellow_max = np.array([23, 130, 245])
+yellow_max = np.array([50, 255, 265])
 
 white_min = np.array([100, 5, 230])
 white_max = np.array([130, 20, 255])
 
-yellow_ice_min = np.array([30, 135, 200])
-yellow_ice_max = np.array([35, 170, 220])
+#yellow_ice_min = np.array([30, 135, 200])
+#yellow_ice_max = np.array([35, 170, 220])
+yellow_ice_min = np.array([30, 115, 200])
+yellow_ice_min = np.array([60, 220, 240])
 
-#green_ice_min = np.array([30, 180, 140])
+green_ice_min = np.array([10, 150, 120])
+green_ice_max = np.array([75, 245, 200])
+#green_ice_min = np.array([20, 160, 120])
 #green_ice_max = np.array([75, 225, 190])
-green_ice_min = np.array([20, 160, 120])
-green_ice_max = np.array([75, 225, 190])
+
+
+def prepareImage(img):
+    kernel = np.ones((10,10), np.uint8)
+    blur = cv.blur(img,(7,7))
+    erosion = cv.erode(blur, kernel, iterations=4)
+    dilation = cv.dilate(erosion, kernel, iterations=2)
+    return dilation
+
+
+def contourArea(cnt):
+   x,y,w,h = cv.boundingRect(cnt)
+   return w*h
 
 
 def find_contours(color, img):
@@ -56,7 +73,7 @@ def find_contours(color, img):
     if color == "green":
         min_hsv = green_ice_min
         max_hsv = green_ice_max
-    elif color == "yellow
+    elif color == "yellow":
         min_hsv = yellow_min
         max_hsv = yellow_max
     elif color == "pink":
@@ -75,16 +92,25 @@ def find_contours(color, img):
 
 
 
+
 try:
 # capture frames from the camera
+    servo.setTarget(HEADTILT, 1510)
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         image = frame.array
         hsv_img = cv.cvtColor(image, cv.COLOR_BGR2HSV)
-        cv.imshow("Image", image)
         filtered_img = cv.inRange(hsv_img, green_ice_min, green_ice_max)
         edges = cv.Canny(filtered_img, 35, 150, L2gradient=True)
         edges = cv.blur(edges, (7,7))
-        contours, cnt_count = find_contours("green", image)
+        contours, cnt_count = find_contours("yellow", image)
+        cv.drawContours(image, contours, -1, (0,0,255), 3)
+        print("Contour count:", cnt_count)
+        cv.imshow("Image", image)
+        cv.imshow("Edges", edges)
+        cv.imshow("Filtered", filtered_img)
+
+
+
 
 
 
@@ -92,6 +118,9 @@ try:
 
 
         key = cv.waitKey(1) & 0xFF
+        if key == ord("c"):
+            cv.imwrite('yellow_hsv.png', image)
+
 
         # clear the stream in preparation for the next frame
         rawCapture.truncate(0)
@@ -101,7 +130,8 @@ except: # catch *all* exceptions
     print(e)
     # keys.arrow (65)
     END_PROGRAM = True
-    stop()
+    #stop()
+    servo.setTarget(HEADTILT, 6000)
     print('Stopped motors due to an error')
 
 

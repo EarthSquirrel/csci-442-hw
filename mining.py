@@ -8,6 +8,7 @@ import threading
 from client import ClientSocket
 import numpy as np
 import traceback
+import sys
 
 ##############################################################################
 #############################################################################
@@ -54,7 +55,7 @@ def get_contours(edges):
     return contoursS
 
 def check_crossed(raw_img,  hsv_min, hsv_max, window_name='check crossed'):
-    global old_cog_line
+    global pink_cog_line, yellow_cog_line
     raw_img = raw_img[int(height/3):height, int(width/5):int(4*width/5)] # int(width*.25):int(width*.75)]
 
     blur = cv.blur(raw_img,(5,5))
@@ -110,15 +111,35 @@ def check_crossed(raw_img,  hsv_min, hsv_max, window_name='check crossed'):
     cv.rectangle(thresh, (cx,cy), (cx+29, cy+20),(0,0,255), 2)
     cv.imshow(window_name, thresh)
 
-    if old_cog_line[1]> 0 and cog[1] == -1:
+    if window_name == 'pink line':
+        old_cog_line = pink_cog_line
+    else:
+        old_cog_line = yellow_cog_line
+
+    print(old_cog_line, ' ' , window_name)
+    if old_cog_line[1][1]> 0 and cog[1] == -1 and old_cog_line[0][1] == -1:
+    #if old_cog_line[1]> 0 and cog[1] == -1:
         # moving forward towards line
         # print('True old: {} new: {}'.format(old_cog_line, cog))
-        old_cog_line = cog
-        # print('\n\n crossed line!!!!!')
+        if window_name == 'pink line':
+            pink_cog_line [1] = old_cog_line[0]
+            pink_cog_line[0] = cog
+            #pink_cog_line = cog
+        else:
+            yellow_cog_line [1] = old_cog_line[0]
+            yellow_cog_line[0] = cog
+            #yellow_cog_line = cog
+
         return True
     else:
-        # print('False: old {} new {}'.format(old_cog_line, cog))
-        old_cog_line = cog
+        if window_name == 'pink line':
+            pink_cog_line [1] = old_cog_line[0]
+            pink_cog_line[0] = cog
+            #pink_cog_line = cog
+        else:
+            yellow_cog_line [1] = old_cog_line[0]
+            yellow_cog_line[0] = cog
+            #yellow_cog_line = cog
         return False
 
 
@@ -151,6 +172,9 @@ def time_the_faces():
 
 def load_images_clock():
     global load_images_timer, load_images
+    if END_PROGRAM:
+        stop()
+        return
     load_images_timer += 1
     # print('\t\tload_images_timer ', load_images_timer)
     if load_images_timer < 6:
@@ -307,7 +331,7 @@ def detect_ice(raw_img):
 
 def arm_down():
     # set arm so don't have to deal with it later
-    servo.setTarget(TWIST, twist_out)
+    servo.setTarget(TWIST, twist_center)
     time.sleep(.25)
     servo.setTarget(HAND, open_hand)
     servo.setTarget(ELBOW, elbow_straight)
@@ -580,6 +604,7 @@ lower_arm = 4000
 elbow_straight = 6000
 twist_in = 5000
 twist_out = 7000
+twist_center = 6000
 wrist = 8000
 
 # set arm so don't have to deal with it later
@@ -619,7 +644,10 @@ load_images_timer = 0
 
 # start_field bools
 droppedBall = False
-old_cog_line = (float('inf'), float('inf'))
+yellow_cog_line = [(float('inf'), float('inf')), (float('inf'), float('inf'))]
+pink_cog_line = [(float('inf'), float('inf')), (float('inf'), float('inf'))]
+#yellow_cog_line = (float('inf'), float('inf'))
+#pink_cog_line = (float('inf'), float('inf'))
 go_to_bucket = False
 
 # mining bools
@@ -664,11 +692,12 @@ green_min, green_max = (20, 160, 120), (75, 225, 190)
 pink_ice_min, pink_ice_max = (150, 100, 230), (170, 140, 255)
 
 yellow_min, yellow_max = (0, 40, 90), (75, 250, 255)
-yellow_min, yellow_max = (10, 100, 240), (30, 120, 255)
+yellow_min, yellow_max = (10, 50, 240), (35,50, 255)
+
 # on teh test paper
 yellow_min, yellow_max = (10, 180, 130), (30, 200, 150)
 pink_line_min, pink_line_max = (164, 65, 252), (166, 75, 255)
-pink_line_min, pink_line_max = (155, 30, 250), (166, 40, 255)
+pink_line_min, pink_line_max = (0, 0, 245), (5,5, 255)
 
 # headTilt = 4000
 servo.setTarget(HEADTILT, headTilt)
@@ -1033,8 +1062,10 @@ except Exception as e: # catch *all* exceptions
     arm_down()
 
 except:
+    e = sys.exc_info()
+    print(e)
     print('Something didn"t catch....')
     END_PROGRAM = True
-    print(traceback.print_tb(e.__traceback__))
     stop()
     arm_down()
+    #print(traceback.print_tb(e.__traceback__))
