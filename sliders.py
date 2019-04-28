@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-cap = cv2.VideoCapture(0)
+#cap = cv2.VideoCapture(0)
 cv2.namedWindow("Video")
 cv2.namedWindow('hsv', cv2.WINDOW_NORMAL)
 cv2.namedWindow('tracking', cv2.WINDOW_NORMAL)
@@ -9,8 +9,7 @@ cv2.namedWindow('tracking', cv2.WINDOW_NORMAL)
 
 def get_hsv_val(event, x, y, flags, param):
     if event == cv2.EVENT_LBUTTONDOWN:
-        stat2, img2 = cap.read()
-        vals = img2[y][x]
+        vals = img[y][x]
         # set track bar to -10 + 10 of click
         adjust = 25
         cv2.setTrackbarPos('H Min', 'hsv', vals[0]-adjust)
@@ -21,7 +20,6 @@ def get_hsv_val(event, x, y, flags, param):
         cv2.setTrackbarPos('V Max', 'hsv', vals[2]+adjust)
 
 
-cv2.setMouseCallback("hsv", get_hsv_val)
 
 def nothing(x):
     pass
@@ -33,9 +31,11 @@ cv2.createTrackbar('S Max','hsv',0,255, nothing)
 cv2.createTrackbar('V Min','hsv',0,255, nothing)
 cv2.createTrackbar('V Max','hsv',0,255, nothing)
 
+cv2.setMouseCallback("hsv", get_hsv_val)
+
+img = cv2.imread('image.png')# 'hand-imag2e.png')
 while True:
-    status, img = cap.read()
-    cv2.resizeWindow("Video", 600,400)
+
     cv2.imshow("Video", img)
     cv2.resizeWindow("hsv", 600,400)
     cv2.resizeWindow("tracking", 600,400)

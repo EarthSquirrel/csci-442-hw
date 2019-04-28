@@ -220,6 +220,8 @@ try:
 # capture frames from the camera
     time.sleep(0.1)
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+        stop()
+        break
 
         # grab the raw NumPy array representing the image, then initialize the timestamp
         # and occupied/unoccupied text

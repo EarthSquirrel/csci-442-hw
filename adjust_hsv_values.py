@@ -31,8 +31,8 @@ headTilt = 6000
 pink_min = np.array([164, 65, 252])
 pink_max = np.array([166, 75, 255])
 
-yellow_min = np.array([20, 110, 235])
-yellow_max = np.array([50, 255, 265])
+yellow_min = np.array([0, 40, 255])
+yellow_max = np.array([30, 80, 255])
 
 white_min = np.array([100, 5, 230])
 white_max = np.array([130, 20, 255])
@@ -42,10 +42,39 @@ white_max = np.array([130, 20, 255])
 yellow_ice_min = np.array([30, 115, 200])
 yellow_ice_min = np.array([60, 220, 240])
 
-green_ice_min = np.array([10, 150, 120])
-green_ice_max = np.array([75, 245, 200])
+green_ice_min = np.array([20, 150, 120])
+green_ice_max = np.array([100, 255, 220])
 #green_ice_min = np.array([20, 160, 120])
 #green_ice_max = np.array([75, 225, 190])
+
+
+cv.namedWindow('hsv', cv.WINDOW_NORMAL)
+
+def get_hsv_val(event, x, y, flags, param):
+    if event == cv2.EVENT_LBUTTONDOWN:
+        vals = image[y][x]
+        # set track bar to -10 + 10 of click
+        adjust = 25
+        cv.setTrackbarPos('H Min', 'hsv', vals[0]-adjust)
+        cv.setTrackbarPos('H Max', 'hsv', vals[0]+adjust)
+        cv.setTrackbarPos('S Min', 'hsv', vals[1]-adjust)
+        cv.setTrackbarPos('S Max', 'hsv', vals[1]+adjust)
+        cv.setTrackbarPos('V Min', 'hsv', vals[2]-adjust)
+        cv.setTrackbarPos('V Max', 'hsv', vals[2]+adjust)
+
+def nothing(x):
+    pass
+
+cv.createTrackbar('H Min','hsv',0,255, nothing)
+cv.createTrackbar('H Max','hsv',0,255, nothing)
+cv.createTrackbar('S Min','hsv',0,255, nothing)
+cv.createTrackbar('S Max','hsv',0,255, nothing)
+cv.createTrackbar('V Min','hsv',0,255, nothing)
+cv.createTrackbar('V Max','hsv',0,255, nothing)
+
+cv.setMouseCallback("hsv", get_hsv_val)
+
+
 
 
 def prepareImage(img):
@@ -102,17 +131,13 @@ try:
         filtered_img = cv.inRange(hsv_img, green_ice_min, green_ice_max)
         edges = cv.Canny(filtered_img, 35, 150, L2gradient=True)
         edges = cv.blur(edges, (7,7))
-        contours, cnt_count = find_contours("yellow", image)
+        contours, cnt_count = find_contours("green", image)
         cv.drawContours(image, contours, -1, (0,0,255), 3)
         print("Contour count:", cnt_count)
         cv.imshow("Image", image)
+        cv.imshow("hsv", hsv_img)
         cv.imshow("Edges", edges)
         cv.imshow("Filtered", filtered_img)
-
-
-
-
-
 
 
 

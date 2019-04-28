@@ -714,19 +714,20 @@ pink_line_min, pink_line_max = (0, 0, 245), (5,5, 255)
 servo.setTarget(HEADTILT, headTilt)
 servo.setTarget(HEADTILT, 1510)
 threading.Timer(1, load_images_clock).start()
+# TEMPORARY BOOLEAN VARIABLES FOR TESTING DIFFERENT STATES
 # go_straight()
 # avoidance = True
 #start_field = False
 #mining = False
-hasBall= True
-changedState = True
+#hasBall= True
+#changedState = True
 #blob_found = False
 
 #searching = True
 #search()
 
-time.sleep(2.0)
-close_hand()
+#time.sleep(2.0)
+#close_hand()
 
 print('Starting the program')
 try:
