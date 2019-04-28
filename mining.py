@@ -181,7 +181,7 @@ def load_images_clock():
         threading.Timer(1, load_images_clock).start()
     else:
         load_images = False
-        go_straight()
+        #go_straight()
 
 def get_turn_dir():
     global turn_dir
@@ -337,6 +337,15 @@ def arm_down():
     servo.setTarget(ELBOW, elbow_straight)
     servo.setTarget(WRIST, wrist)
     servo.setTarget(ARM, lower_arm)
+
+
+def open_hand():
+    servo.setTarget(11, 4000)
+
+
+def close_hand():
+    servo.setTarget(HAND, closed_hand)
+
 
 
 
@@ -684,15 +693,17 @@ bool_vals = {'start_field': start_field, 'avoidance': avoidance, 'mining': minin
 # allow the camera to warmup
 time.sleep(0.1)
 camera.stop_preview()
-green_ice_min = np.array([20, 160, 120])
-green_ice_max = np.array([75, 225, 190])
+green_ice_min = np.array([20, 150, 120])
+green_ice_max = np.array([100, 255, 220])
+#green_ice_min = np.array([20, 160, 120])
+#green_ice_max = np.array([75, 225, 190])
 
 #green_ice_min, green_ice_max = (40, 200, 200), (50, 240, 240)
 green_min, green_max = (20, 160, 120), (75, 225, 190)
 pink_ice_min, pink_ice_max = (150, 100, 230), (170, 140, 255)
 
 yellow_min, yellow_max = (0, 40, 90), (75, 250, 255)
-yellow_min, yellow_max = (10, 50, 240), (35,50, 255)
+yellow_min, yellow_max = (0, 0, 240), (70,60, 255)
 
 # on teh test paper
 yellow_min, yellow_max = (10, 180, 130), (30, 200, 150)
@@ -705,15 +716,17 @@ servo.setTarget(HEADTILT, 1510)
 threading.Timer(1, load_images_clock).start()
 # go_straight()
 # avoidance = True
-#start_field = True
 #start_field = False
 #mining = False
-#hasBall= True
-#changedState = True
+hasBall= True
+changedState = True
 #blob_found = False
 
 #searching = True
 #search()
+
+time.sleep(2.0)
+close_hand()
 
 print('Starting the program')
 try:
@@ -721,10 +734,13 @@ try:
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         image = frame.array
         height, width, channel = image.shape
+        cv.imshow("Image", image)
 
         # yellow
 
         # Change the state if crossed a line
+
+        """
         if not searching and check_crossed(image, yellow_min, yellow_max, 'yellow line') and not load_images:
 
             print('crossed a yellow line')
@@ -759,10 +775,11 @@ try:
                 print('not in any state, there"s a problem with pink!')
 
             print('Start {}, avoid {} mine {}'.format(start_field, avoidance, mining))
-
+        """
         if start_field:
             small_img = image.copy()
             small_img = cv.resize(small_img, (width, int(height*0.6)))
+            cv.imshow("Small Image", small_img)
             x_mid = width / 2
             y_mid = height / 2
             #cv.imshow("Small Orig", small_img)
@@ -772,6 +789,8 @@ try:
             edges = cv.Canny(filtered_img, 35, 150, L2gradient=True)
             edges = cv.blur(edges, (7,7))
             contours, cnt_count = find_contours("green", image)
+            cv.drawContours(image, contours, -1, (0,0,255), 3)
+
             servo.setTarget(HEADTILT, 1510)
 
             if changedState:
@@ -788,24 +807,33 @@ try:
             if hasBall:
                 # drop the ball in the cup
                 if go_to_bucket:
-                    print("Going to bucket!")
+                    print("GOING TO  BUCKET!")
                     raw_img = hsv_img.copy()
                     resized = cv.resize(raw_img, (width, int(height*0.6)))
                     small_conts, small_cnt_count = find_contours("green", resized)
-                    rect = cv.boundingRect(contours[0])
-                    x,y,w,h = rect
-                    cv.rectangle(resized, (x,y), (x+w, y+h),(0,0,255))
-                    bucket_center = get_rect_center(rect)
-                    print("BUCKET CENTER: ", bucket_center)
-                    print("SMALL CONTOUR COUNT: ", small_cnt_count)
-                    '''
-                    if bucket_center[1] < 260:
+                    cv.drawContours(small_img, small_conts, -1, (0,0,255),3)
+
+                    if small_cnt_count > 0:
+                        rect = cv.boundingRect(small_conts[0])
+                        x,y,w,h = rect
+                        cv.rectangle(resized, (x,y), (x+w, y+h),(0,0,255))
+                        bucket_center = get_rect_center(rect)
+                        print("BUCKET CENTER: ", bucket_center)
+                        print("SMALL CONTOUR COUNT: ", small_cnt_count)
+                        go_straight()
+                    elif small_cnt_count == 0:
+                        print("CONTOUR COUNT 0")
+                        repositioning = False
                         go_to_bucket = False
+                        blob_found = False
+                        searching = False
+                        servo.setTarget(MOTORS, 6000)
+                        servo.setTarget(HAND, open_hand)
+                        time.sleep(1.0)
                         stop()
-                    else:
-                        go_forward()
-                    '''
-                    go_straight()
+
+                    #else:
+                     #   go_straight()
                 elif repositioning:
                     # Reposition
                     print("FOUND THE BUCKET! WILL NOW REPOSITION!")
@@ -823,7 +851,6 @@ try:
                             print("reposition right")
                             reposition("right")
                         elif bucket_center[0] >= x_mid - 50 and bucket_center[0] <= x_mid + 50:
-                            print("GOING TO BUCKET")
                             repositioning = False
                             go_to_bucket = True
                     else:
