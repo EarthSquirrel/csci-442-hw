@@ -12,10 +12,7 @@ green_img = cv.imread('green.png')
 hsv_ice_img = cv.cvtColor(yellow_img, cv.COLOR_BGR2HSV)
 thresh = green_img
 
-<<<<<<< HEAD
-=======
-img = cv.imread('paper-field-hall-429.png')# 'hand-imag2e.png')
->>>>>>> d175e6bdcee5f12d30079ba4de3451d6a97bf62f
+img = cv.imread('image.png')# 'hand-imag2e.png')
 hsv_img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
 
 
@@ -36,20 +33,17 @@ pink_max = np.array([166, 75, 255])
 yellow_ice_min = np.array([30, 135, 200])
 yellow_ice_max = np.array([35, 170, 220])
 
-<<<<<<< HEAD
 green_ice_min = np.array([50, 190, 160])
 green_ice_max = np.array([55, 205, 170])
 
-hsv_filter = cv.inRange(hsv_ice_img, yellow_ice_min, yellow_ice_max)
+#hsv_filter = cv.inRange(hsv_ice_img, yellow_ice_min, yellow_ice_max)
 
 # worked on hand-imag2e.png
 # yellow_min = np.array([100, 0, 150])
 # yellow_max = np.array([135, 15, 255])
-=======
 hsv_min, hsv_max = (150, 100, 230), (170, 140, 255)
 
 hsv_filter = cv.inRange(hsv_img, hsv_min, hsv_max)
->>>>>>> d175e6bdcee5f12d30079ba4de3451d6a97bf62f
 
 
 def get_hsv_val(event, x, y, flags, param):
@@ -63,11 +57,12 @@ def get_hsv_val(event, x, y, flags, param):
 cv.setMouseCallback("hsv ice img", get_hsv_val)
 
 while True:
-	cv.imshow('original', green_img)
-	cv.imshow('hsv ice img', hsv_ice_img)
-	cv.imshow('filter', hsv_filter)
+	#cv.imshow('original', green_img)
+	#cv.imshow('hsv ice img', hsv_ice_img)
+	cv.imshow('hsv ice img', hsv_img)
+    #cv.imshow('image', img)
 
-	img2, contours, hierarchy = cv.findContours(hsv_filter, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
+	contours, hierarchy = cv.findContours(hsv_filter, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
 	# for cnt in contours:
 	# 	x,y,w,h = cv.boundingRect(cnt)
 	# 	cv.rectangle(hsv_filter, (x,y), (x+w,y+h,), (0,255,0), 2)

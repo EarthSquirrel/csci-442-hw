@@ -231,8 +231,7 @@ try:
         small_img = cv.resize(small_img, (width, int(height*0.6)))
         cv.imshow("Small Orig", small_img)
         hsv_img = cv.cvtColor(image, cv.COLOR_BGR2HSV)
-        hsv_img = prepareImage(image)
-        filtered_img = cv.inRange(hsv_img, green_ice_min, green_ice_max)
+
         edges = cv.Canny(filtered_img, 35, 150, L2gradient=True)
         edges = cv.blur(edges, (7,7))
         contours, cnt_count = find_contours("green", image)
