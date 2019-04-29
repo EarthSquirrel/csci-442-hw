@@ -78,7 +78,7 @@ def check_crossed(raw_img,  hsv_min, hsv_max, window_name='check crossed'):
     dil_edges = cv.dilate(edges, kernel, iterations=3)
     # cv.imshow('edges', dil_edges)
     edge_name = window_name + '-edges'
-    cv.imshow(edge_name, dil_edges)
+    #cv.imshow(edge_name, dil_edges)
 
     thresh = raw_img.copy()
 
@@ -181,7 +181,7 @@ def load_images_clock():
         threading.Timer(1, load_images_clock).start()
     else:
         load_images = False
-        #go_straight()
+        go_straight()
 
 def get_turn_dir():
     global turn_dir
@@ -620,7 +620,7 @@ wrist = 8000
 servo.setTarget(ARM, raised_arm)
 time.sleep(.5)
 servo.setTarget(HAND, open_hand)
-servo.setTarget(TWIST, twist_in)
+servo.setTarget(TWIST, twist_out)
 servo.setTarget(WRIST, wrist)
 
 
@@ -700,15 +700,19 @@ green_ice_max = np.array([100, 255, 220])
 
 #green_ice_min, green_ice_max = (40, 200, 200), (50, 240, 240)
 green_min, green_max = (20, 160, 120), (75, 225, 190)
-pink_ice_min, pink_ice_max = (150, 100, 230), (170, 140, 255)
+#pink_ice_min, pink_ice_max = (150, 100, 230), (170, 140, 255)
+pink_ice_min, pink_ice_max = (140, 10, 125), (170, 20, 200)
 
-yellow_min, yellow_max = (0, 40, 90), (75, 250, 255)
+#yellow_min, yellow_max = (0, 40, 90), (75, 250, 255)
 yellow_min, yellow_max = (0, 0, 240), (70,60, 255)
+#yellow_min, yellow_max = (0,50,255), (30,255,255) # Peter's
+yellow_min, yellow_max = (25, 30, 250), (35, 60, 255)
 
 # on teh test paper
-yellow_min, yellow_max = (10, 180, 130), (30, 200, 150)
+#yellow_min, yellow_max = (10, 180, 130), (30, 200, 150)
 pink_line_min, pink_line_max = (164, 65, 252), (166, 75, 255)
 pink_line_min, pink_line_max = (0, 0, 245), (5,5, 255)
+pink_line_min, pink_line_max = (135,20,190), (179,255,255) # Peter's
 
 # headTilt = 4000
 servo.setTarget(HEADTILT, headTilt)
@@ -741,7 +745,6 @@ try:
 
         # Change the state if crossed a line
 
-        """
         if not searching and check_crossed(image, yellow_min, yellow_max, 'yellow line') and not load_images:
 
             print('crossed a yellow line')
@@ -776,11 +779,9 @@ try:
                 print('not in any state, there"s a problem with pink!')
 
             print('Start {}, avoid {} mine {}'.format(start_field, avoidance, mining))
-        """
         if start_field:
             small_img = image.copy()
             small_img = cv.resize(small_img, (width, int(height*0.6)))
-            cv.imshow("Small Image", small_img)
             x_mid = width / 2
             y_mid = height / 2
             #cv.imshow("Small Orig", small_img)
@@ -806,6 +807,7 @@ try:
                 search()
 
             if hasBall:
+                cv.imshow("Small Image", small_img)
                 # drop the ball in the cup
                 if go_to_bucket:
                     print("GOING TO  BUCKET!")
