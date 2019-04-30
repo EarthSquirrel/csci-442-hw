@@ -56,7 +56,7 @@ def get_contours(edges):
 
 def check_crossed(raw_img,  hsv_min, hsv_max, window_name='check crossed'):
     global pink_cog_line, yellow_cog_line
-    raw_img = raw_img[int(height/3):height, int(width/5):int(4*width/5)] # int(width*.25):int(width*.75)]
+    raw_img = raw_img[int(height/2):height, int(width/5):int(4*width/5)] # int(width*.25):int(width*.75)]
 
     blur = cv.blur(raw_img,(5,5))
     # cv.imshow('raw_img', raw_img)
@@ -116,30 +116,30 @@ def check_crossed(raw_img,  hsv_min, hsv_max, window_name='check crossed'):
     else:
         old_cog_line = yellow_cog_line
 
-    print(old_cog_line, ' ' , window_name)
-    if old_cog_line[1][1]> 0 and cog[1] == -1 and old_cog_line[0][1] == -1:
-    #if old_cog_line[1]> 0 and cog[1] == -1:
+    # print(old_cog_line, ' ' , window_name)
+    #if old_cog_line[1][1]> 0 and cog[1] == -1 and old_cog_line[0][1] == -1:
+    if old_cog_line[1]> 0 and cog[1] == -1:
         # moving forward towards line
         # print('True old: {} new: {}'.format(old_cog_line, cog))
         if window_name == 'pink line':
-            pink_cog_line [1] = old_cog_line[0]
-            pink_cog_line[0] = cog
-            #pink_cog_line = cog
+            #pink_cog_line [1] = old_cog_line[0]
+            #pink_cog_line[0] = cog
+            pink_cog_line = cog
         else:
-            yellow_cog_line [1] = old_cog_line[0]
-            yellow_cog_line[0] = cog
-            #yellow_cog_line = cog
+            #yellow_cog_line [1] = old_cog_line[0]
+            #yellow_cog_line[0] = cog
+            yellow_cog_line = cog
 
         return True
     else:
         if window_name == 'pink line':
-            pink_cog_line [1] = old_cog_line[0]
-            pink_cog_line[0] = cog
-            #pink_cog_line = cog
+            #pink_cog_line [1] = old_cog_line[0]
+            #pink_cog_line[0] = cog
+            pink_cog_line = cog
         else:
-            yellow_cog_line [1] = old_cog_line[0]
-            yellow_cog_line[0] = cog
-            #yellow_cog_line = cog
+            #yellow_cog_line [1] = old_cog_line[0]
+            #yellow_cog_line[0] = cog
+            yellow_cog_line = cog
         return False
 
 
@@ -177,7 +177,7 @@ def load_images_clock():
         return
     load_images_timer += 1
     # print('\t\tload_images_timer ', load_images_timer)
-    if load_images_timer < 6:
+    if load_images_timer < 8:
         threading.Timer(1, load_images_clock).start()
     else:
         load_images = False
@@ -188,13 +188,14 @@ def get_turn_dir():
     head_pos = servo.getPosition(HEADTURN)
     face_loc = faces[0][0] + faces[0][2]/2
     # if (head_pos < 6000 and face_loc < width/2) or (head_pos > 6000 and face_loc < width/2):
-    if head_pos > 6000:
-        print("Turn dir = right")
-        turn_dir = "right"
+    # Switched these
+    if head_pos >= 6000:
+        print("Turn dir = left")
+        turn_dir = "left"
     # elif (head_pos > 6000 and face_loc > width/2) or (head_pos < 6000 and face_loc > width/2):
     if head_pos < 6000:
-        print("Turn dir = left")
-        turn_dir = 'left'
+        print("Turn dir = right")
+        turn_dir = 'right'
 
 
 def stop_face_center(width, faces):
@@ -598,20 +599,20 @@ body = 6000
 headTurn = 6000
 headTilt = 6000
 
-max_move = 5400  # 5400
-max_turn = 7200  # left
-min_turn = 4800  # right
+max_move = 5200  # 5400
+max_turn = 7200#7200  # left
+min_turn = 4800#4800  # right
 max_head_turn = 7500 # max 7900
 min_head_turn = 4000 # min 1510
 min_head_tilt = 1510
 max_time = 5
 
 open_hand = 4000
-closed_hand = 5600
-raised_arm = 7000 # 8000
+closed_hand = 6000
+raised_arm = 8000
 lower_arm = 4000
 elbow_straight = 6000
-twist_in = 5000
+twist_in = 5400
 twist_out = 7000
 twist_center = 6000
 wrist = 8000
@@ -622,7 +623,7 @@ time.sleep(.5)
 servo.setTarget(HAND, open_hand)
 servo.setTarget(TWIST, twist_out)
 servo.setTarget(WRIST, wrist)
-
+servo.setTarget(ELBOW, elbow_straight)
 
 # In the hall
 #max_move = 5600
@@ -639,7 +640,7 @@ talking = False
 if talking:
     PORT = 5010
     client = ClientSocket(IP, PORT)
-
+previous_state = 'start_field'
 # states
 start_field = True
 avoidance = False
@@ -653,10 +654,11 @@ load_images_timer = 0
 
 # start_field bools
 droppedBall = False
-yellow_cog_line = [(float('inf'), float('inf')), (float('inf'), float('inf'))]
-pink_cog_line = [(float('inf'), float('inf')), (float('inf'), float('inf'))]
-#yellow_cog_line = (float('inf'), float('inf'))
-#pink_cog_line = (float('inf'), float('inf'))
+blob_found = False
+#yellow_cog_line = [(float('inf'), float('inf')), (float('inf'), float('inf'))]
+#pink_cog_line = [(float('inf'), float('inf')), (float('inf'), float('inf'))]
+yellow_cog_line = (float('inf'), float('inf'))
+pink_cog_line = (float('inf'), float('inf'))
 go_to_bucket = False
 
 # mining bools
@@ -703,11 +705,6 @@ green_min, green_max = (20, 160, 120), (75, 225, 190)
 #pink_ice_min, pink_ice_max = (150, 100, 230), (170, 140, 255)
 pink_ice_min, pink_ice_max = (140, 10, 125), (170, 20, 200)
 
-#yellow_min, yellow_max = (0, 40, 90), (75, 250, 255)
-yellow_min, yellow_max = (0, 0, 240), (70,60, 255)
-#yellow_min, yellow_max = (0,50,255), (30,255,255) # Peter's
-yellow_min, yellow_max = (25, 30, 250), (35, 60, 255)
-
 # on teh test paper
 #yellow_min, yellow_max = (10, 180, 130), (30, 200, 150)
 pink_line_min, pink_line_max = (164, 65, 252), (166, 75, 255)
@@ -725,7 +722,6 @@ threading.Timer(1, load_images_clock).start()
 #mining = False
 #hasBall= True
 #changedState = True
-#blob_found = False
 
 #searching = True
 #search()
@@ -745,6 +741,27 @@ try:
 
         # Change the state if crossed a line
 
+        if not searching and not searchingTurn and check_crossed(image, pink_line_min, pink_line_max, 'pink line') and not load_images:
+            changedState = True
+            print('previous_state: ', previous_state)
+            print('Start {}, avoid {} mine {}'.format(start_field, avoidance, mining))
+            if start_field and previous_state == 'start_field':
+                start_field = False
+                avoidance = True
+            elif avoidance and previous_state == 'mining':
+                avoidance = False
+                start_field = True
+            elif avoidance and previous_state == 'start_field':
+                avoidance = False
+                mining = True
+                previous_state = 'avoidance'
+            elif mining and previous_state == 'avoidance' and moveToGreen:
+                mining = False
+                avoidance = True
+                previous_state = 'mining'
+            print('Start {}, avoid {} mine {}'.format(start_field, avoidance, mining))
+
+        """
         if not searching and check_crossed(image, yellow_min, yellow_max, 'yellow line') and not load_images:
 
             print('crossed a yellow line')
@@ -779,6 +796,9 @@ try:
                 print('not in any state, there"s a problem with pink!')
 
             print('Start {}, avoid {} mine {}'.format(start_field, avoidance, mining))
+        """
+
+
         if start_field:
             small_img = image.copy()
             small_img = cv.resize(small_img, (width, int(height*0.6)))
@@ -831,6 +851,8 @@ try:
                         blob_found = False
                         searching = False
                         servo.setTarget(MOTORS, 6000)
+                        time.sleep(.5)
+                        servo.setTarget(TWIST, twist_in)
                         servo.setTarget(HAND, open_hand)
                         time.sleep(1.0)
                         stop()
@@ -884,6 +906,7 @@ try:
             if hasBall:
                 # move to start_field
                 pass
+
             elif not hasBall:
                 # move to mining
                 pass
@@ -900,18 +923,22 @@ try:
                     talk(speaking)
                 print(speaking)
                 changedState = False
+                time.sleep(.25)
                 stop()
                 headTilt = 6000
                 servo.setTarget(HEADTILT, headTilt)
+                servo.setTarget(TWIST, twist_in)
 
             if hasBall:
                 if not searchingTurn and not locatedGreenBox:
+                    time.sleep(1)
                     servo.setTarget(TWIST, twist_out)
-                    servo.setTarget(HEADTILT, 1510)
+                    #servo.setTarget(HEADTILT, 1510)
                     searchingTurn = True
                     search_turn()
                     print('starting to spin and search for green')
                 else:
+                    servo.setTarget(HEADTILT, 6000)
                     # locate the green box while searching
                     # green_min, green_max = (20, 160, 120), (75, 225, 190)
                     if not locatedGreenBox:
@@ -934,6 +961,7 @@ try:
                             else: # left or right
                                 reposition(green_turn_dir)
                         else: # moveToGreen
+                            servo.setTarget(HEADTILT, 1510)
                             go_straight()
 
             elif not hasBall:
@@ -984,7 +1012,9 @@ try:
                             gotoHuman = False
                             repositioning = False
                             searching = False
-                        elif face[2]/width > .42:
+                        elif face[2]/width > .25:
+                            face_timer = 2
+                        elif face[2]/width > .40:
                             print('Was chasing, but got a big face so stop!')
                             stop()
                             # print('*************DONE!*********************')
