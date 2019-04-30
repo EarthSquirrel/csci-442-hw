@@ -188,14 +188,13 @@ def get_turn_dir():
     head_pos = servo.getPosition(HEADTURN)
     face_loc = faces[0][0] + faces[0][2]/2
     # if (head_pos < 6000 and face_loc < width/2) or (head_pos > 6000 and face_loc < width/2):
-    # Switched these
     if head_pos >= 6000:
-        print("Turn dir = left")
-        turn_dir = "left"
+        print("Turn dir = right")
+        turn_dir = "right"
     # elif (head_pos > 6000 and face_loc > width/2) or (head_pos < 6000 and face_loc > width/2):
     if head_pos < 6000:
-        print("Turn dir = right")
-        turn_dir = 'right'
+        print("Turn dir = left")
+        turn_dir = 'left'
 
 
 def stop_face_center(width, faces):
@@ -289,7 +288,7 @@ def detect_ice(raw_img):
     ice_cnts = get_contours(dil_edges)
 
     if counting_ice_cnts:
-        if counting_ice_cnts_timer > 2:
+        if counting_ice_cnts_timer > 1:
             counting_ice_cnts = False
             print('GRAB THE ICE!!!')
             servo.setTarget(HAND, closed_hand)
@@ -631,12 +630,12 @@ servo.setTarget(ELBOW, elbow_straight)
 #min_turn = 5000
 
 # IP address for talking
-IP = '10.200.23.235'
+IP = '10.200.4.23' #23.235'
 
 ##################################################3##
 ############## Boolean values #######################
 #####################################################
-talking = False
+talking = True
 if talking:
     PORT = 5010
     client = ClientSocket(IP, PORT)
@@ -742,23 +741,28 @@ try:
         # Change the state if crossed a line
 
         if not searching and not searchingTurn and check_crossed(image, pink_line_min, pink_line_max, 'pink line') and not load_images:
-            changedState = True
             print('previous_state: ', previous_state)
             print('Start {}, avoid {} mine {}'.format(start_field, avoidance, mining))
             if start_field and previous_state == 'start_field':
+                changedState = True
                 start_field = False
                 avoidance = True
             elif avoidance and previous_state == 'mining':
+                changedState = True
                 avoidance = False
                 start_field = True
             elif avoidance and previous_state == 'start_field':
+                changedState = True
                 avoidance = False
                 mining = True
                 previous_state = 'avoidance'
             elif mining and previous_state == 'avoidance' and moveToGreen:
+                changedState = True
                 mining = False
                 avoidance = True
                 previous_state = 'mining'
+            else:
+                print('entered changing state logic, but didnt change states.')
             print('Start {}, avoid {} mine {}'.format(start_field, avoidance, mining))
 
         """
@@ -822,6 +826,8 @@ try:
                 if talking:
                     talk(speaking)
                 print(speaking)
+                time.sleep(.1)
+                stop()
                 changedState = False
                 searching = True
                 search()
@@ -853,6 +859,7 @@ try:
                         servo.setTarget(MOTORS, 6000)
                         time.sleep(.5)
                         servo.setTarget(TWIST, twist_in)
+                        time.sleep(.5)
                         servo.setTarget(HAND, open_hand)
                         time.sleep(1.0)
                         stop()
@@ -895,6 +902,7 @@ try:
                 pass
 
         elif avoidance:
+            servo.setTarget(HEADTILT, 1510)
             if changedState:
                 # talk
                 speaking = ["Vroom vroom. Let's run stuff over!"]
@@ -923,7 +931,7 @@ try:
                     talk(speaking)
                 print(speaking)
                 changedState = False
-                time.sleep(.25)
+                time.sleep(.15)
                 stop()
                 headTilt = 6000
                 servo.setTarget(HEADTILT, headTilt)
@@ -953,6 +961,8 @@ try:
                             if green_turn_dir == 'center':
                                 stop()  # stop for now
                                 moveToGreen = True
+                                servo.setTarget(HEADTILT, 1510)
+                                time.sleep(.25)
                                 print('Towards green! go_straight and do magical things!')
                             elif green_turn_dir == 'none':
                                 # reset so it starts spinning again
@@ -961,7 +971,6 @@ try:
                             else: # left or right
                                 reposition(green_turn_dir)
                         else: # moveToGreen
-                            servo.setTarget(HEADTILT, 1510)
                             go_straight()
 
             elif not hasBall:
@@ -1012,9 +1021,9 @@ try:
                             gotoHuman = False
                             repositioning = False
                             searching = False
-                        elif face[2]/width > .25:
+                        elif face[2]/width > .15:
                             face_timer = 2
-                        elif face[2]/width > .40:
+                        elif face[2]/width > .35:
                             print('Was chasing, but got a big face so stop!')
                             stop()
                             # print('*************DONE!*********************')
