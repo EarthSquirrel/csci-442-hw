@@ -28,11 +28,21 @@ headTurn = 6000
 headTilt = 6000
 
 
-pink_min = np.array([164, 65, 252])
-pink_max = np.array([166, 75, 255])
+#pink_min = np.array([164, 65, 252])
+#pink_max = np.array([170, 75, 255])
+pink_min = np.array([150, 60, 240])
+pink_max = np.array([180, 80, 255])
 
-yellow_min = np.array([0, 40, 255])
-yellow_max = np.array([30, 80, 255])
+#pink_ice_min, pink_ice_max = (150, 100, 230), (170, 140, 255)
+pink_ice_min, pink_ice_max = (130, 10, 125), (170, 20, 200)
+
+
+
+#yellow_min = np.array([0, 40, 255])
+#yellow_max = np.array([30, 80, 255])
+yellow_min, yellow_max = (0,50,255), (30,255,255) # Peter's WORK REALLY WELL
+#yellow_min, yellow_max = (25, 30, 250), (35, 60, 255)
+
 
 white_min = np.array([100, 5, 230])
 white_max = np.array([130, 20, 255])
@@ -51,7 +61,7 @@ green_ice_max = np.array([100, 255, 220])
 cv.namedWindow('hsv', cv.WINDOW_NORMAL)
 
 def get_hsv_val(event, x, y, flags, param):
-    if event == cv2.EVENT_LBUTTONDOWN:
+    if event == cv.EVENT_LBUTTONDOWN:
         vals = image[y][x]
         # set track bar to -10 + 10 of click
         adjust = 25
@@ -127,13 +137,28 @@ try:
     servo.setTarget(HEADTILT, 1510)
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         image = frame.array
+        h = cv.getTrackbarPos('H Max','hsv')
+        s = cv.getTrackbarPos('S Max','hsv')
+        v = cv.getTrackbarPos('V Max','hsv')
+
+        hsv_max = np.array([h, s, v])
+
+        h = cv.getTrackbarPos('H Min','hsv')
+        s = cv.getTrackbarPos('S Min','hsv')
+        v = cv.getTrackbarPos('V Min','hsv')
+
+        hsv_min = np.array([h, s, v])
+
+        # Convert to hsv
+
         hsv_img = cv.cvtColor(image, cv.COLOR_BGR2HSV)
-        filtered_img = cv.inRange(hsv_img, green_ice_min, green_ice_max)
+        pink_line_min, pink_line_max = (135,20,190), (179,255,255) # Peter's
+        filtered_img = cv.inRange(hsv_img, pink_line_min, pink_line_max)
         edges = cv.Canny(filtered_img, 35, 150, L2gradient=True)
         edges = cv.blur(edges, (7,7))
-        contours, cnt_count = find_contours("green", image)
+        contours, cnt_count = find_contours("pink", image)
         cv.drawContours(image, contours, -1, (0,0,255), 3)
-        print("Contour count:", cnt_count)
+        # print("Contour count:", cnt_count)
         cv.imshow("Image", image)
         cv.imshow("hsv", hsv_img)
         cv.imshow("Edges", edges)
@@ -144,7 +169,8 @@ try:
 
         key = cv.waitKey(1) & 0xFF
         if key == ord("c"):
-            cv.imwrite('yellow_hsv.png', image)
+            cv.imwrite('pink.png', image)
+            print("C button pushed")
 
 
         # clear the stream in preparation for the next frame
