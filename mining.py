@@ -177,7 +177,7 @@ def load_images_clock():
         return
     load_images_timer += 1
     # print('\t\tload_images_timer ', load_images_timer)
-    if load_images_timer < 8:
+    if load_images_timer < 1:
         threading.Timer(1, load_images_clock).start()
     else:
         load_images = False
@@ -639,6 +639,7 @@ talking = True
 if talking:
     PORT = 5010
     client = ClientSocket(IP, PORT)
+    talk(['I can talk now'])
 previous_state = 'start_field'
 # states
 start_field = True
@@ -701,8 +702,10 @@ green_ice_max = np.array([100, 255, 220])
 
 #green_ice_min, green_ice_max = (40, 200, 200), (50, 240, 240)
 green_min, green_max = (20, 160, 120), (75, 225, 190)
+#green_min, green_max =
 #pink_ice_min, pink_ice_max = (150, 100, 230), (170, 140, 255)
 pink_ice_min, pink_ice_max = (140, 10, 125), (170, 20, 200)
+pink_ice_min, pink_ice_max = (40, 130, 240), (45, 200, 255)
 
 # on teh test paper
 #yellow_min, yellow_max = (10, 180, 130), (30, 200, 150)
@@ -946,10 +949,10 @@ try:
                     search_turn()
                     print('starting to spin and search for green')
                 else:
-                    servo.setTarget(HEADTILT, 6000)
                     # locate the green box while searching
                     # green_min, green_max = (20, 160, 120), (75, 225, 190)
                     if not locatedGreenBox:
+                        servo.setTarget(HEADTILT, 6000)
                         # print('detecting green box!')
                         if detect_green_box(image, green_min, green_max):
                             locatedGreenBox = True
